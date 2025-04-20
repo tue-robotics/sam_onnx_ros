@@ -77,7 +77,7 @@ public:
 
     char* PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
 
-    //std::vector<std::string> classes{};
+    std::vector<std::string> classes{};
 
 private:
     Ort::Env env;

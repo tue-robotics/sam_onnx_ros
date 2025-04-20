@@ -22,7 +22,27 @@ namespace Ort
 #endif
 
 
+// Definition: Flattened image to blob (and normalizaed) for deep learning inference. Also reorganize from HWC to CHW.
+// Note: Not in the header file since it is not used outside of this file.
+template<typename T>
+char* BlobFromImage(cv::Mat& iImg, T& iBlob) {
+    int channels = iImg.channels();
+    int imgHeight = iImg.rows;
+    int imgWidth = iImg.cols;
 
+    for (int c = 0; c < channels; c++)
+    {
+        for (int h = 0; h < imgHeight; h++)
+        {
+            for (int w = 0; w < imgWidth; w++)
+            {
+                iBlob[c * imgWidth * imgHeight + h * imgWidth + w] = typename std::remove_pointer<T>::type(
+                    (iImg.at<cv::Vec3b>(h, w)[c]) / 255.0f);
+            }
+        }
+    }
+    return RET_OK;
+}
 
 const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
     const char* Ret = RET_OK;
@@ -298,27 +318,6 @@ char* SAM::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
     return RET_OK;
 }
 
-// Definition: Flattened image to blob (and normalizaed) for deep learning inference. Also reorganize from HWC to CHW.
-// Note: Not in the header file since it is not used outside of this file.
-template<typename T>
-char* BlobFromImage(cv::Mat& iImg, T& iBlob) {
-    int channels = iImg.channels();
-    int imgHeight = iImg.rows;
-    int imgWidth = iImg.cols;
-
-    for (int c = 0; c < channels; c++)
-    {
-        for (int h = 0; h < imgHeight; h++)
-        {
-            for (int w = 0; w < imgWidth; w++)
-            {
-                iBlob[c * imgWidth * imgHeight + h * imgWidth + w] = typename std::remove_pointer<T>::type(
-                    (iImg.at<cv::Vec3b>(h, w)[c]) / 255.0f);
-            }
-        }
-    }
-    return RET_OK;
-}
 
 char* SAM::WarmUpSession() {
     clock_t starttime_1 = clock();
