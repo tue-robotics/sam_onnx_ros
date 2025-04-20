@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-set(PROJECT_NAME Yolov8OnnxRuntimeCPPInference)
+set(PROJECT_NAME SAMOnnxRuntimeCPPInference)
 project(${PROJECT_NAME} VERSION 0.0.1 LANGUAGES CXX)
 
 # -------------- Support C++17 for using filesystem  ------------------#

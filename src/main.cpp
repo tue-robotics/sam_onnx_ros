@@ -13,7 +13,7 @@ void SegmentAnything() {
     params.modelPath = "model/SAM_encoder.onnx";
     params.imgSize = { 640, 640 };
 
-    samSegmentor->SAM::CreateSession(params);
+    samSegmentor->CreateSession(params);
 
     //input_tensor_size = session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementCount();
     //output_tensor_size = session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementCount();

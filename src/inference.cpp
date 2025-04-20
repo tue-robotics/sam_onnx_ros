@@ -1,8 +1,9 @@
 #include "inference.h"
 #include <regex>
 
-#define benchmark
-#define min(a,b)            (((a) < (b)) ? (a) : (b))
+//#define benchmark
+//#define min(a,b)            (((a) < (b)) ? (a) : (b))
+
 SAM::SAM() {
 
 }
@@ -86,14 +87,115 @@ const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
     }
     catch (const std::exception& e)
     {
-        const char* str1 = "[YOLO_V8]:";
+        const char* str1 = "[SAM]:";
         const char* str2 = e.what();
         std::string result = std::string(str1) + std::string(str2);
         char* merged = new char[result.length() + 1];
         std::strcpy(merged, result.c_str());
         std::cout << merged << std::endl;
         delete[] merged;
-        return "[YOLO_V8]:Create session failed.";
+        return "[SAM]:Create session failed.";
     }
 
+}
+
+char* SAM::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
+{
+    if (iImg.channels() == 3)
+    {
+        oImg = iImg.clone();
+        cv::cvtColor(oImg, oImg, cv::COLOR_BGR2RGB);
+    }
+    else
+    {
+        cv::cvtColor(iImg, oImg, cv::COLOR_GRAY2RGB);
+    }
+
+    switch (modelType)
+    {
+    case SAM_SEGMENT:
+    {
+        if (iImg.cols >= iImg.rows)
+        {
+            resizeScales = iImg.cols / (float)iImgSize.at(0);
+            cv::resize(oImg, oImg, cv::Size(iImgSize.at(0), int(iImg.rows / resizeScales)));
+        }
+        else
+        {
+            resizeScales = iImg.rows / (float)iImgSize.at(0);
+            cv::resize(oImg, oImg, cv::Size(int(iImg.cols / resizeScales), iImgSize.at(1)));
+        }
+        cv::Mat tempImg = cv::Mat::zeros(iImgSize.at(0), iImgSize.at(1), CV_8UC3);
+        oImg.copyTo(tempImg(cv::Rect(0, 0, oImg.cols, oImg.rows)));
+        oImg = tempImg;
+        break;
+    }
+    // you can add more preprocess methods here for different SAM models
+    }
+    return RET_OK;
+}
+
+// Definition: Flattened image to blob (and normalizaed) for deep learning inference. Also reorganize from HWC to CHW.
+// Note: Not in the header file since it is not used outside of this file.
+template<typename T>
+char* BlobFromImage(cv::Mat& iImg, T& iBlob) {
+    int channels = iImg.channels();
+    int imgHeight = iImg.rows;
+    int imgWidth = iImg.cols;
+
+    for (int c = 0; c < channels; c++)
+    {
+        for (int h = 0; h < imgHeight; h++)
+        {
+            for (int w = 0; w < imgWidth; w++)
+            {
+                iBlob[c * imgWidth * imgHeight + h * imgWidth + w] = typename std::remove_pointer<T>::type(
+                    (iImg.at<cv::Vec3b>(h, w)[c]) / 255.0f);
+            }
+        }
+    }
+    return RET_OK;
+}
+
+char* SAM::WarmUpSession() {
+    clock_t starttime_1 = clock();
+    cv::Mat iImg = cv::Mat(cv::Size(imgSize.at(0), imgSize.at(1)), CV_8UC3);
+    cv::Mat processedImg;
+    PreProcess(iImg, imgSize, processedImg);
+    if (modelType < 4)
+    {
+        float* blob = new float[iImg.total() * 3];
+        BlobFromImage(processedImg, blob);
+        std::vector<int64_t> YOLO_input_node_dims = { 1, 3, imgSize.at(0), imgSize.at(1) };
+        Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
+            Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
+            YOLO_input_node_dims.data(), YOLO_input_node_dims.size());
+        auto output_tensors = session->Run(options, inputNodeNames.data(), &input_tensor, 1, outputNodeNames.data(),
+            outputNodeNames.size());
+        delete[] blob;
+        clock_t starttime_4 = clock();
+        double post_process_time = (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
+        if (cudaEnable)
+        {
+            std::cout << "[SAM(CUDA)]: " << "Cuda warm-up cost " << post_process_time << " ms. " << std::endl;
+        }
+    }
+    else
+    {
+#ifdef USE_CUDA
+        half* blob = new half[iImg.total() * 3];
+        BlobFromImage(processedImg, blob);
+        std::vector<int64_t> YOLO_input_node_dims = { 1,3,imgSize.at(0),imgSize.at(1) };
+        Ort::Value input_tensor = Ort::Value::CreateTensor<half>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1), YOLO_input_node_dims.data(), YOLO_input_node_dims.size());
+        auto output_tensors = session->Run(options, inputNodeNames.data(), &input_tensor, 1, outputNodeNames.data(), outputNodeNames.size());
+        delete[] blob;
+        clock_t starttime_4 = clock();
+        double post_process_time = (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
+        if (cudaEnable)
+        {
+            std::cout << "[SAM(CUDA)]: " << "Cuda warm-up cost " << post_process_time << " ms. " << std::endl;
+        }
+#endif
+    }
+    return RET_OK;
 }

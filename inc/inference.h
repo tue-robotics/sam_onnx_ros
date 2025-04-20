@@ -69,13 +69,13 @@ public:
 
     //const char* RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult);
 
-    //char* WarmUpSession();
+    char* WarmUpSession();
 
     //template<typename N>
     //char* TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
         //std::vector<DL_RESULT>& oResult);
 
-    //char* PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
+    char* PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
 
     //std::vector<std::string> classes{};
 
