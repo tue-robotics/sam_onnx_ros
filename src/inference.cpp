@@ -146,7 +146,7 @@ const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
 
 }
 
-const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult) {
+const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, std::string& modelPath) {
     #ifdef benchmark
         clock_t starttime_1 = clock();
     #endif // benchmark
@@ -158,7 +158,15 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult) {
         {
             float* blob = new float[processedImg.total() * 3];
             BlobFromImage(processedImg, blob);
-            std::vector<int64_t> inputNodeDims = { 1, 3, imgSize.at(0), imgSize.at(1) };
+            std::vector<int64_t> inputNodeDims;
+            if (modelPath == "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_encoder.onnx")
+            {
+                inputNodeDims = { 1, 3, imgSize.at(0), imgSize.at(1) };
+            }
+            else if (modelPath == "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_mask_decoder.onnx")
+            {
+                inputNodeDims = { 1, 236, 64, 64 };
+            }
             TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
         }
         else
@@ -201,6 +209,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult) {
         {
             int signalResultNum = outputNodeDims[1];//84
             int strideNum = outputNodeDims[2];//8400
+            int maskNum = outputNodeDims[3];//8400
             std::vector<int> class_ids;
             std::vector<float> confidences;
             std::vector<cv::Rect> boxes;
@@ -208,12 +217,12 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult) {
             if (modelType == SAM_SEGMENT)
             {
                 // FP32
-                rawData = cv::Mat(signalResultNum, strideNum, CV_32F, output);
+                rawData = cv::Mat(signalResultNum, strideNum, maskNum, CV_32F, output);
             }
             else
             {
                 // FP16
-                rawData = cv::Mat(signalResultNum, strideNum, CV_16F, output);
+                rawData = cv::Mat(signalResultNum, strideNum, maskNum, CV_16F, output);
                 rawData.convertTo(rawData, CV_32F);
             }
             // Note:
@@ -222,7 +231,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult) {
             rawData = rawData.t();
 
             float* data = (float*)rawData.data;
-
+            // All this for loop is only for YOLO
             for (int i = 0; i < strideNum; ++i)
             {
                 float* classesScores = data + 4;

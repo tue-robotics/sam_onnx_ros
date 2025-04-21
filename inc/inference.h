@@ -77,6 +77,8 @@ typedef struct _DL_RESULT
 
     // Sam Part
     std::vector<float> embeddings;
+    // Masks for SAM decoder model output
+    std::vector<cv::Mat> masks; // Each cv::Mat represents a mask
 
 } DL_RESULT;
 
@@ -92,7 +94,7 @@ public:
 
     const char* CreateSession(DL_INIT_PARAM& iParams);
 
-    const char* RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult);
+    const char* RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, std::string& modelPath);
 
     char* WarmUpSession();
 
