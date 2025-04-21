@@ -22,8 +22,8 @@
 enum MODEL_TYPE
 {
     //FLOAT32 MODEL
-    SAM_SEGMENT = 1,
-    YOLO_POSE = 2,
+    SAM_SEGMENT_ENCODER = 1,
+    SAM_SEGMENT_DECODER = 2,
     YOLO_CLS = 3,
 
     //FLOAT16 MODEL
@@ -37,7 +37,7 @@ typedef struct _DL_INIT_PARAM
 {
     // Yolo & Common Part
     std::string modelPath;
-    MODEL_TYPE modelType = SAM_SEGMENT;
+    MODEL_TYPE modelType = SAM_SEGMENT_ENCODER;
     std::vector<int> imgSize = { 640, 640 };
     float rectConfidenceThreshold = 0.6;
     float iouThreshold = 0.5;

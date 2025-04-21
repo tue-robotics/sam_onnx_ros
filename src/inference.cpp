@@ -201,74 +201,19 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, std:
         auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
         std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
         auto output = outputTensor.front().GetTensorMutableData<typename std::remove_pointer<N>::type>();
+        //std::vector<int64_t> outputNodeDims = outputTensor.front().GetTensorTypeAndShapeInfo().GetShape();
         delete[] blob;
         switch (modelType)
         {
-        case SAM_SEGMENT:
+        case SAM_SEGMENT_ENCODER:
         // case OTHER_SAM_MODEL:
         {
-            int signalResultNum = outputNodeDims[1];//84
-            int strideNum = outputNodeDims[2];//8400
-            int maskNum = outputNodeDims[3];//8400
-            std::vector<int> class_ids;
-            std::vector<float> confidences;
-            std::vector<cv::Rect> boxes;
-            cv::Mat rawData;
-            if (modelType == SAM_SEGMENT)
-            {
-                // FP32
-                rawData = cv::Mat(signalResultNum, strideNum, maskNum, CV_32F, output);
-            }
-            else
-            {
-                // FP16
-                rawData = cv::Mat(signalResultNum, strideNum, maskNum, CV_16F, output);
-                rawData.convertTo(rawData, CV_32F);
-            }
-            // Note:
-            // ultralytics add transpose operator to the output of yolov8 model.which make yolov8/v5/v7 has same shape
-            // https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt
-            rawData = rawData.t();
 
-            float* data = (float*)rawData.data;
-            // All this for loop is only for YOLO
-            for (int i = 0; i < strideNum; ++i)
-            {
-                float* classesScores = data + 4;
-                cv::Mat scores(1, this->classes.size(), CV_32FC1, classesScores);
-                cv::Point class_id;
-                double maxClassScore;
-                cv::minMaxLoc(scores, 0, &maxClassScore, 0, &class_id);
-                if (maxClassScore > rectConfidenceThreshold)
-                {
-                    confidences.push_back(maxClassScore);
-                    class_ids.push_back(class_id.x);
-                    float x = data[0];
-                    float y = data[1];
-                    float w = data[2];
-                    float h = data[3];
+            DL_RESULT result;
+            int embeddingSize = outputNodeDims[1] * outputNodeDims[2] * outputNodeDims[3]; // Flattened size
+            result.embeddings.assign(output, output + embeddingSize); // Save embeddings
+            oResult.push_back(result);
 
-                    int left = int((x - 0.5 * w) * resizeScales);
-                    int top = int((y - 0.5 * h) * resizeScales);
-
-                    int width = int(w * resizeScales);
-                    int height = int(h * resizeScales);
-
-                    boxes.push_back(cv::Rect(left, top, width, height));
-                }
-                data += signalResultNum;
-            }
-            std::vector<int> nmsResult;
-            cv::dnn::NMSBoxes(boxes, confidences, rectConfidenceThreshold, iouThreshold, nmsResult);
-            for (int i = 0; i < nmsResult.size(); ++i)
-            {
-                int idx = nmsResult[i];
-                DL_RESULT result;
-                result.classId = class_ids[idx];
-                result.confidence = confidences[idx];
-                result.box = boxes[idx];
-                oResult.push_back(result);
-            }
 
     #ifdef benchmark
             clock_t starttime_4 = clock();
@@ -290,24 +235,6 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, std:
         case YOLO_CLS:
         case YOLO_CLS_HALF:
         {
-            cv::Mat rawData;
-            if (modelType == YOLO_CLS) {
-                // FP32
-                rawData = cv::Mat(1, this->classes.size(), CV_32F, output);
-            } else {
-                // FP16
-                rawData = cv::Mat(1, this->classes.size(), CV_16F, output);
-                rawData.convertTo(rawData, CV_32F);
-            }
-            float *data = (float *) rawData.data;
-
-            DL_RESULT result;
-            for (int i = 0; i < this->classes.size(); i++)
-            {
-                result.classId = i;
-                result.confidence = data[i];
-                oResult.push_back(result);
-            }
             break;
         }
         default:
@@ -332,7 +259,7 @@ char* SAM::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
 
     switch (modelType)
     {
-    case SAM_SEGMENT:
+    case SAM_SEGMENT_ENCODER:
     {
         if (iImg.cols >= iImg.rows)
         {
