@@ -35,24 +35,49 @@ enum MODEL_TYPE
 
 typedef struct _DL_INIT_PARAM
 {
+    // Yolo & Common Part
     std::string modelPath;
     MODEL_TYPE modelType = SAM_SEGMENT;
     std::vector<int> imgSize = { 640, 640 };
     float rectConfidenceThreshold = 0.6;
     float iouThreshold = 0.5;
-    int	keyPointsNum = 2;//Note:kpt number for pose
+    int	keyPointsNum = 2; //Note:kpt number for pose
     bool cudaEnable = false;
     int logSeverityLevel = 3;
     int intraOpNumThreads = 1;
+
+    friend std::ostream& operator<<(std::ostream& os, _DL_INIT_PARAM& param)
+    {
+        os << "modelPath: " << param.modelPath << "\n";
+        os << "modelType: " << param.modelType << "\n";
+        os << "imgSize: ";
+        for (const auto& size : param.imgSize)
+            os << size << " ";
+        os << "\n";
+        os << "rectConfidenceThreshold: " << param.rectConfidenceThreshold << "\n";
+        os << "iouThreshold: " << param.iouThreshold << "\n";
+        os << "keyPointsNum: " << param.keyPointsNum << "\n";
+        os << "cudaEnable: " << (param.cudaEnable ? "true" : "false") << "\n";
+        os << "logSeverityLevel: " << param.logSeverityLevel << "\n";
+        os << "intraOpNumThreads: " << param.intraOpNumThreads;
+        return os;
+    }
+
 } DL_INIT_PARAM;
 
 
 typedef struct _DL_RESULT
 {
+
+    //Yolo Part
     int classId;
     float confidence;
     cv::Rect box;
     std::vector<cv::Point2f> keyPoints;
+
+    // Sam Part
+    std::vector<float> embeddings;
+
 } DL_RESULT;
 
 

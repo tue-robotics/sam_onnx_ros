@@ -102,6 +102,33 @@ const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
             outputNodeNames.push_back(temp_buf);
         }
         options = Ort::RunOptions{ nullptr };
+
+        //std::vector<long int> input_shape;
+        //std::vector<long int> output_shape;
+        //size_t input_tensor_size = 0;
+        //size_t output_tensor_size = 0;
+        //Get input and output tensor size
+
+        //auto input_tensor_size = session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementCount();
+        //auto output_tensor_size = session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementCount();
+        auto input_shape = session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
+        auto output_shape = session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
+        auto output_type = session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementType();
+        std::cout << "output_type: " << output_type << std::endl;
+        //std::cout << "input_tensor_size: " << input_tensor_size << std::endl;
+        //std::cout << "output_tensor_size: " << output_tensor_size << std::endl;
+        std::cout << "input_shape: ";
+        for (auto i : input_shape)
+        {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "output_shape: ";
+        for (auto i : output_shape)
+        {
+            std::cout << i << " ";
+        }
+        std::cout << std::endl;
         WarmUpSession();
         return RET_OK;
     }
