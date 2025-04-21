@@ -29,8 +29,8 @@ void SegmentAnything() {
             std::string img_path = i.path().string();
             cv::Mat img = cv::imread(img_path);
             std::vector<DL_RESULT> res;
-            std::string& modelPathRef = params.modelPath;
-            samSegmentorEncoder->RunSession(img, res, modelPathRef);
+            MODEL_TYPE modelTypeRef = params.modelType;
+            samSegmentorEncoder->RunSession(img, res, modelTypeRef);
 
 
             DL_INIT_PARAM params1;
@@ -40,6 +40,8 @@ void SegmentAnything() {
             std::cout << params1 << "params1" << std::endl;
             //params.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/FastSAM-x.onnx";
             samSegmentorDecoder->CreateSession(params1);
+            modelTypeRef = params1.modelType;
+            samSegmentorEncoder->RunSession(img, res, modelTypeRef);
             //samSegmentorDecoder->RunSession(img, res, modelPathRef);
             std::cout << "Press any key to exit" << std::endl;
             cv::imshow("Result of Detection", img);

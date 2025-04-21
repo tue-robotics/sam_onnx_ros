@@ -94,7 +94,7 @@ public:
 
     const char* CreateSession(DL_INIT_PARAM& iParams);
 
-    const char* RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, std::string& modelPath);
+    const char* RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODEL_TYPE modelType);
 
     char* WarmUpSession();
 

@@ -146,7 +146,7 @@ const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
 
 }
 
-const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, std::string& modelPath) {
+const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODEL_TYPE modelType) {
     #ifdef benchmark
         clock_t starttime_1 = clock();
     #endif // benchmark
@@ -159,12 +159,19 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, std:
             float* blob = new float[processedImg.total() * 3];
             BlobFromImage(processedImg, blob);
             std::vector<int64_t> inputNodeDims;
-            if (modelPath == "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_encoder.onnx")
+            if (modelType == SAM_SEGMENT_ENCODER)
             {
                 inputNodeDims = { 1, 3, imgSize.at(0), imgSize.at(1) };
             }
-            else if (modelPath == "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_mask_decoder.onnx")
+            else if (modelType == SAM_SEGMENT_DECODER)
             {
+                // For SAM decoder model, the input size is different
+                // Assuming the input size is 236x64x64 for the decoder
+                // You can adjust this based on your actual model requirements
+                // For example, if the input size is 1x3x236x64, you can set it as follows:
+                // inputNodeDims = { 1, 3, 236, 64 };
+                // But here we are using 1x236x64x64 as per your original code
+
                 inputNodeDims = { 1, 236, 64, 64 };
             }
             TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
