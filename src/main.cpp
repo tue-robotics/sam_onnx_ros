@@ -9,15 +9,14 @@
 
 void SegmentAnything() {
 
-    SAM* samSegmentorEncoder = new SAM;
-    SAM* samSegmentorDecoder = new SAM;
+    SAM* samSegmentor = new SAM;
     DL_INIT_PARAM params;
     params.rectConfidenceThreshold = 0.1;
     params.iouThreshold = 0.5;
     params.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_encoder.onnx";
     params.imgSize = { 1024, 1024 };
     std::cout << params << "params" <<std::endl;
-    samSegmentorEncoder->CreateSession(params);
+    samSegmentor->CreateSession(params);
 
     //Running inference
     std::filesystem::path current_path = std::filesystem::current_path();
@@ -30,7 +29,7 @@ void SegmentAnything() {
             cv::Mat img = cv::imread(img_path);
             std::vector<DL_RESULT> res;
             MODEL_TYPE modelTypeRef = params.modelType;
-            samSegmentorEncoder->RunSession(img, res, modelTypeRef);
+            samSegmentor->RunSession(img, res, modelTypeRef);
 
 
             DL_INIT_PARAM params1;
@@ -39,9 +38,9 @@ void SegmentAnything() {
             params1.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_mask_decoder.onnx";
             std::cout << params1 << "params1" << std::endl;
             //params.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/FastSAM-x.onnx";
-            samSegmentorDecoder->CreateSession(params1);
+            samSegmentor->CreateSession(params1);
             modelTypeRef = params1.modelType;
-            samSegmentorEncoder->RunSession(img, res, modelTypeRef);
+            samSegmentor->RunSession(img, res, modelTypeRef);
             //samSegmentorDecoder->RunSession(img, res, modelPathRef);
             std::cout << "Press any key to exit" << std::endl;
             cv::imshow("Result of Detection", img);
