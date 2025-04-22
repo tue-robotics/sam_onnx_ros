@@ -96,11 +96,11 @@ public:
 
     const char* RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODEL_TYPE modelType);
 
-    char* WarmUpSession();
+    char* WarmUpSession(MODEL_TYPE modelType);
 
     template<typename N>
     char* TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
-        std::vector<DL_RESULT>& oResult);
+        MODEL_TYPE modelType, std::vector<DL_RESULT>& oResult);
 
     char* PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
 

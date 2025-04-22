@@ -129,7 +129,7 @@ const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
             std::cout << i << " ";
         }
         std::cout << std::endl;
-        WarmUpSession();
+        WarmUpSession(modelType);
         return RET_OK;
     }
     catch (const std::exception& e)
@@ -174,7 +174,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
                 inputNodeDims = { 1, 236, 64, 64 };
             }
-            TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
+            TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult);
         }
         else
         {
@@ -191,30 +191,32 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
     template<typename N>
     char* SAM::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
-        std::vector<DL_RESULT>& oResult) {
-        Ort::Value inputTensor = Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
-            Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
-            inputNodeDims.data(), inputNodeDims.size());
-    #ifdef benchmark
-        clock_t starttime_2 = clock();
-    #endif // benchmark
-        auto outputTensor = session->Run(options, inputNodeNames.data(), &inputTensor, 1, outputNodeNames.data(),
-            outputNodeNames.size());
-    #ifdef benchmark
-        clock_t starttime_3 = clock();
-    #endif // benchmark
+        MODEL_TYPE modelType, std::vector<DL_RESULT>& oResult) {
 
-        Ort::TypeInfo typeInfo = outputTensor.front().GetTypeInfo();
-        auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
-        std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
-        auto output = outputTensor.front().GetTensorMutableData<typename std::remove_pointer<N>::type>();
-        //std::vector<int64_t> outputNodeDims = outputTensor.front().GetTensorTypeAndShapeInfo().GetShape();
-        delete[] blob;
         switch (modelType)
         {
         case SAM_SEGMENT_ENCODER:
         // case OTHER_SAM_MODEL:
         {
+
+            Ort::Value inputTensor = Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
+                Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
+                inputNodeDims.data(), inputNodeDims.size());
+        #ifdef benchmark
+            clock_t starttime_2 = clock();
+        #endif // benchmark
+            auto outputTensor = session->Run(options, inputNodeNames.data(), &inputTensor, 1, outputNodeNames.data(),
+                outputNodeNames.size());
+        #ifdef benchmark
+            clock_t starttime_3 = clock();
+        #endif // benchmark
+
+            Ort::TypeInfo typeInfo = outputTensor.front().GetTypeInfo();
+            auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
+            std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
+            auto output = outputTensor.front().GetTensorMutableData<typename std::remove_pointer<N>::type>();
+            //std::vector<int64_t> outputNodeDims = outputTensor.front().GetTensorTypeAndShapeInfo().GetShape();
+            delete[] blob;
 
             DL_RESULT result;
             int embeddingSize = outputNodeDims[1] * outputNodeDims[2] * outputNodeDims[3]; // Flattened size
@@ -239,9 +241,36 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
             break;
         }
-        case YOLO_CLS:
-        case YOLO_CLS_HALF:
+        case SAM_SEGMENT_DECODER:
+        //case <OTHER MODEL>:
         {
+            // Use embeddings from the last result
+            std::vector<float>& embeddings = oResult.back().embeddings;
+            // Create tensor for decoder
+            std::vector<int64_t> decoderInputDims = { 1, 256, 64, 64 }; // Adjust based on your decoder's requirements
+            Ort::Value decoderInputTensor = Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
+                Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                embeddings.data(), // Use the embeddings from the encoder
+                embeddings.size(), // Total number of elements
+                decoderInputDims.data(),
+                decoderInputDims.size()
+            );
+            //Ort::Value inputTensor = Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
+                //Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                //blob, 3 * imgSize.at(0) * imgSize.at(1),
+                //inputNodeDims.data(),
+                //inputNodeDims.size());
+            // Run the decoder session
+            //auto decoderOutputTensor = decoderSession->Run(
+                //Ort::RunOptions{ nullptr },
+                //decoderInputNodeNames.data(),
+                //&decoderInputTensor,
+                //1,
+                //decoderOutputNodeNames.data(),
+                //decoderOutputNodeNames.size()
+            //);
+
+            // Process decoder output (if needed)
             break;
         }
         default:
@@ -289,7 +318,7 @@ char* SAM::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
 }
 
 
-char* SAM::WarmUpSession() {
+char* SAM::WarmUpSession(MODEL_TYPE modelType) {
     clock_t starttime_1 = clock();
     cv::Mat iImg = cv::Mat(cv::Size(imgSize.at(0), imgSize.at(1)), CV_8UC3);
     cv::Mat processedImg;
@@ -299,18 +328,50 @@ char* SAM::WarmUpSession() {
         float* blob = new float[iImg.total() * 3];
         BlobFromImage(processedImg, blob);
         std::vector<int64_t> SAM_input_node_dims = { 1, 3, imgSize.at(0), imgSize.at(1) };
-        Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-            Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
-            SAM_input_node_dims.data(), SAM_input_node_dims.size());
-        auto output_tensors = session->Run(options, inputNodeNames.data(), &input_tensor, 1, outputNodeNames.data(),
-            outputNodeNames.size());
-        delete[] blob;
-        clock_t starttime_4 = clock();
-        double post_process_time = (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
-        if (cudaEnable)
+        switch (modelType)
         {
-            std::cout << "[SAM(CUDA)]: " << "Cuda warm-up cost " << post_process_time << " ms. " << std::endl;
+        case SAM_SEGMENT_ENCODER: {
+            Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
+                Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
+                SAM_input_node_dims.data(), SAM_input_node_dims.size());
+            auto output_tensors = session->Run(options, inputNodeNames.data(), &input_tensor, 1, outputNodeNames.data(),
+                outputNodeNames.size());
+            delete[] blob;
+            clock_t starttime_4 = clock();
+            double post_process_time = (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
+            if (cudaEnable)
+            {
+                std::cout << "[SAM(CUDA)]: " << "Cuda warm-up cost " << post_process_time << " ms. " << std::endl;
+            }
+            break;
         }
+
+        case SAM_SEGMENT_DECODER: {
+            std::vector<int64_t> inputNodeDims = { 1, 236, 64, 64 };
+            // Use embeddings from the last result
+            std::vector<float> dummyEmbeddings(256 * 64 * 64, 0.0f); // Fill with zeros or any dummy values
+            std::vector<int64_t> decoderInputDims = { 1, 256, 64, 64 }; // Adjust based on your decoder's requirements
+            Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
+                Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                dummyEmbeddings.data(), // Use the embeddings from the encoder
+                dummyEmbeddings.size(), // Total number of elements
+                decoderInputDims.data(),
+                decoderInputDims.size()
+            );
+            auto output_tensors = session->Run(options, inputNodeNames.data(), &decoderInputTensor, 1, outputNodeNames.data(),
+            outputNodeNames.size());
+            delete[] blob;
+            clock_t starttime_4 = clock();
+            double post_process_time = (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
+            if (cudaEnable)
+            {
+                std::cout << "[SAM(CUDA)]: " << "Cuda warm-up cost " << post_process_time << " ms. " << std::endl;
+            }
+
+            break;
+        }
+    }
+
     }
     else
     {
