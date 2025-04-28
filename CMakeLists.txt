@@ -15,7 +15,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 # -------------- ONNXRuntime  ------------------#
 set(ONNXRUNTIME_VERSION 1.21.0)
-set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}")
+set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../onnxruntime-linux-x64-gpu-1.21.1")
 include_directories(${ONNXRUNTIME_ROOT}/include)
 
 # -------------- Cuda ------------------#
