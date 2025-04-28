@@ -248,13 +248,12 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
         {
             // Use embeddings from the last result
             std::vector<float> embeddings = oResult.back().embeddings;
-            std::vector<float> persistentEmbeddings = oResult.back().embeddings;
             // Create tensor for decoder
             std::vector<int64_t> decoderInputDims = { 1, 256, 64, 64 }; // Adjust based on your decoder's requirements
             Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
                 Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                persistentEmbeddings.data(), // Use the embeddings from the encoder
-                persistentEmbeddings.size(), // Total number of elements
+                embeddings.data(), // Use the embeddings from the encoder
+                embeddings.size(), // Total number of elements
                 decoderInputDims.data(),
                 decoderInputDims.size()
             );
@@ -291,8 +290,8 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
             std::cout << "Embeddings data pointer: " << static_cast<const void*>(embeddings.data()) << std::endl;
 
-            if (persistentEmbeddings.size() != 256 * 64 * 64) {
-                std::cerr << "[SAM]: Embeddings size mismatch. Expected 256*64*64, got " << persistentEmbeddings.size() << std::endl;
+            if (embeddings.size() != 256 * 64 * 64) {
+                std::cerr << "[SAM]: Embeddings size mismatch. Expected 256*64*64, got " << embeddings.size() << std::endl;
                 return "[SAM]: Decoder failed due to invalid embeddings.";
             }
 
