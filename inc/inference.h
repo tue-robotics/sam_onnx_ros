@@ -104,6 +104,8 @@ public:
 
     char* PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
 
+    void overlay(cv::Mat& image, const cv::Mat& mask);
+
     std::vector<std::string> classes{};
 
 private:

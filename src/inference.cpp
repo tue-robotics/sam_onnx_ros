@@ -44,6 +44,12 @@ char* BlobFromImage(cv::Mat& iImg, T& iBlob) {
     return RET_OK;
 }
 
+void overlay(cv::Mat& image, const cv::Mat& mask) {
+    // Placeholder for the overlay logic
+    // This function should blend the mask with the original image
+    addWeighted(image, 0.5, mask, 0.5, 0, image);
+}
+
 const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
     const char* Ret = RET_OK;
     std::regex pattern("[\u4e00-\u9fa5]");
@@ -174,7 +180,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                 // inputNodeDims = { 1, 3, 236, 64 };
                 // But here we are using 1x236x64x64 as per your original code
 
-                inputNodeDims = { 1, 236, 64, 64 };
+                inputNodeDims = { 1, 256, 64, 64 };
             }
             TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult);
         }
@@ -233,11 +239,11 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             double post_process_time = (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
             if (cudaEnable)
             {
-                std::cout << "[YOLO_V8(CUDA)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
+                std::cout << "[SAM(CUDA)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
             }
             else
             {
-                std::cout << "[YOLO_V8(CPU)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
+                std::cout << "[SAM(CPU)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
             }
     #endif // benchmark
 
@@ -259,6 +265,12 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             );
 
             /////////////////// DEBUG /////////////////////
+
+            std::cout << "Decoder Input Tensor Shape: ";
+            for (auto dim : decoderInputTensor.GetTensorTypeAndShapeInfo().GetShape()) {
+                std::cout << dim << " " << std::endl;
+            }
+
             if (oResult.empty()) {
                 std::cerr << "[SAM]: No embeddings available from the encoder." << std::endl;
                 return "[SAM]: Decoder failed due to missing embeddings.";
@@ -315,7 +327,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
             // Create dummy point coordinates and labels
             std::vector<cv::Rect> boundingBoxes = {
-                cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
+                //cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
                 cv::Rect(50, 50, 150, 150) // Another example bounding box
             };
             for (const auto& bbox : boundingBoxes) {
@@ -389,7 +401,87 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                     inputTensors.size(),
                     outputNodeNames.data(),
                     outputNodeNames.size()
-                ); }
+                );
+
+            // Process decoder output (masks)
+if (output_tensors.size() > 0) {
+    // Get the masks from the output tensor
+    auto masksTensor = std::move(output_tensors[0]);  // First output should be the masks
+    auto masksInfo = masksTensor.GetTensorTypeAndShapeInfo();
+    auto masksShape = masksInfo.GetShape();
+
+    // Debug print mask shape
+    std::cout << "Masks Tensor Shape: ";
+    for (auto dim : masksShape) {
+        std::cout << dim << " ";
+    }
+    std::cout << std::endl;
+
+    if (masksShape.size() == 4) {
+        auto masksData = masksTensor.GetTensorMutableData<float>();
+        size_t batchSize = masksShape[0]; // Usually 1
+        size_t numMasks = masksShape[1];  // Number of masks (typically 1)
+        size_t height = masksShape[2];    // Height of mask
+        size_t width = masksShape[3];     // Width of mask
+
+        std::cout << "Processing " << numMasks << " masks..." << std::endl;
+
+        for (size_t i = 0; i < numMasks; ++i) {
+            // Create OpenCV Mat for the mask
+            cv::Mat mask = cv::Mat::zeros(height, width, CV_8UC1);
+
+            // Convert float mask to binary mask
+            for (size_t h = 0; h < height; ++h) {
+                for (size_t w = 0; w < width; ++w) {
+                    size_t idx = (i * height * width) + (h * width) + w;
+                    float value = masksData[idx];
+                    mask.at<uchar>(h, w) = (value > 0.5f) ? 255 : 0;  // Threshold at 0.5
+                }
+            }
+
+            // Resize mask to original image size (accounting for any scaling)
+            cv::resize(mask, mask, cv::Size(iImg.cols, iImg.rows));
+
+            // Create or update a result
+            DL_RESULT result;
+
+            // If we want to preserve the embeddings from the encoder
+            if (!oResult.empty()) {
+                result.embeddings = oResult.back().embeddings;
+            }
+
+            // Add the mask to the result
+            result.masks.push_back(mask);
+
+            // Add IoU scores if available (typically second tensor)
+            if (output_tensors.size() > 1) {
+                auto scoresTensor = std::move(output_tensors[1]);
+                auto scoresData = scoresTensor.GetTensorMutableData<float>();
+                if (i < scoresTensor.GetTensorTypeAndShapeInfo().GetShape()[1]) {
+                    result.confidence = scoresData[i];
+                    std::cout << "Mask confidence: " << result.confidence << std::endl;
+                }
+            }
+
+            // Add the result to oResult
+            oResult.push_back(result);
+
+            // Visualize the mask on the input image
+            cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
+            colorMask.setTo(cv::Scalar(0, 0, 255), mask);  // Red color for mask
+
+            // Blend the original image with the colored mask
+            cv::addWeighted(iImg, 0.7, colorMask, 0.3, 0.0, iImg);
+
+            // Save or display the result
+            cv::imwrite("segmentation_result_" + std::to_string(i) + ".jpg", iImg);
+            cv::imwrite("mask_" + std::to_string(i) + ".jpg", mask);
+        }
+    } else {
+        std::cerr << "[SAM]: Unexpected mask tensor shape." << std::endl;
+    }
+}
+            }
             //Ort::Value inputTensor = Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
                 //Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
                 //blob, 3 * imgSize.at(0) * imgSize.at(1),
@@ -409,7 +501,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             break;
         }
         default:
-            std::cout << "[YOLO_V8]: " << "Not support model type." << std::endl;
+            std::cout << "[SAM]: " << "Not support model type." << std::endl;
         }
         return RET_OK;
 
@@ -482,7 +574,7 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
         }
 
         case SAM_SEGMENT_DECODER: {
-            std::vector<int64_t> inputNodeDims = { 1, 236, 64, 64 };
+            std::vector<int64_t> inputNodeDims = { 1, 256, 64, 64 }; // BUG: That was 236 instead of 256
             // Use embeddings from the last result
             std::vector<float> dummyEmbeddings(256 * 64 * 64, 1.0f); // Fill with zeros or any dummy values
             std::vector<int64_t> decoderInputDims = { 1, 256, 64, 64 }; // Adjust based on your decoder's requirements
@@ -496,7 +588,7 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
 
             // Create dummy point coordinates and labels
             std::vector<cv::Rect> boundingBoxes = {
-                cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
+                //cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
                 cv::Rect(50, 50, 150, 150) // Another example bounding box
             };
             for (const auto& bbox : boundingBoxes) {
