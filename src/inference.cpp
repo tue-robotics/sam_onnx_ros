@@ -1,8 +1,9 @@
 #include "inference.h"
 #include <regex>
+#include <typeinfo>
 
 #define benchmark
-#define min(a,b)            (((a) < (b)) ? (a) : (b))
+// #define min(a,b)            (((a) < (b)) ? (a) : (b))
 
 SAM::SAM() {
 
@@ -326,60 +327,89 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             /////////////////// DEBUG STOP /////////////////////
 
             // Create dummy point coordinates and labels
-            std::vector<cv::Rect> boundingBoxes = {
-                //cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
-                cv::Rect(50, 50, 150, 150) // Another example bounding box
-            };
-            for (const auto& bbox : boundingBoxes) {
-                // Convert bounding box to points
+            // std::vector<cv::Rect> boundingBoxes = {
+            // cv::Rect(215, 650, 332, 195), // Example bounding box with (x, y, width, height)
+            // cv::Rect(0, 0, 1000, 1000) // Another example bounding box
+            // };
+
+            /*
+            // Create a window for user interaction
+            namedWindow("Select and View Result", cv::WINDOW_AUTOSIZE);
+
+            // Let the user select the bounding box
+            cv::Rect bbox = selectROI("Select and View Result", iImg, false, false);
+
+            // Check if a valid bounding box was selected
+            if (bbox.width == 0 || bbox.height == 0)
+            {
+                std::cerr << "No valid bounding box selected." << std::endl;
+                return "[SAM]: NO valid Box.";
+            }
+            */
+            // cv::Rect bbox1(100, 30, 280, 320);
+            cv::Rect bbox1(138, 29, 170, 301);
+            std::vector<cv::Rect> boundingBoxes;
+            boundingBoxes.push_back(bbox1);
+
+            for (const auto &bbox : boundingBoxes)
+            {
+                // Convert bounding box to a vector of points
                 std::vector<float> pointCoords = {
-                    static_cast<float>(bbox.x), static_cast<float>(bbox.y),                     // Top-left point
+                    static_cast<float>(bbox.x), static_cast<float>(bbox.y),                           // Top-left point
                     static_cast<float>(bbox.x + bbox.width), static_cast<float>(bbox.y + bbox.height) // Bottom-right point
                 };
-                std::vector<int64_t> pointCoordsDims = { 1, 2, 2 }; // 2 points, each with (x, y)
+
+                std::vector<float> pointCoordsScaled;
+
+                std::vector<int64_t> pointCoordsDims = {1, 2, 2}; // 2 points, each with (x, y)
+
+                // Prepare decoder input data for the specified points
+
+                float scale = 1024.0f / std::max(iImg.rows, iImg.cols); // Calculate scaling factor
+
+                for (auto i : pointCoords)
+                {
+                    pointCoordsScaled.push_back(i * scale);
+                };
 
                 Ort::Value pointCoordsTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    pointCoords.data(),
-                    pointCoords.size(),
+                    pointCoordsScaled.data(),
+                    pointCoordsScaled.size(),
                     pointCoordsDims.data(),
-                    pointCoordsDims.size()
-                );
+                    pointCoordsDims.size());
 
                 // Labels for the points
-                std::vector<float> pointLabels = { 1.0f, 0.0f }; // Foreground for top-left, background for bottom-right
-                std::vector<int64_t> pointLabelsDims = { 1, 2 };
+                std::vector<float> pointLabels = {1.0f, 0.0f}; // Foreground for top-left, background for bottom-right
+                std::vector<int64_t> pointLabelsDims = {1, 2};
 
                 Ort::Value pointLabelsTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
                     pointLabels.data(),
                     pointLabels.size(),
                     pointLabelsDims.data(),
-                    pointLabelsDims.size()
-                );
+                    pointLabelsDims.size());
 
                 // Create dummy mask_input and has_mask_input
                 std::vector<float> maskInput(256 * 256, 0.0f); // Fill with zeros
-                std::vector<int64_t> maskInputDims = { 1, 1, 256, 256 };
+                std::vector<int64_t> maskInputDims = {1, 1, 256, 256};
 
                 Ort::Value maskInputTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
                     maskInput.data(),
                     maskInput.size(),
                     maskInputDims.data(),
-                    maskInputDims.size()
-                );
+                    maskInputDims.size());
 
-                std::vector<float> hasMaskInput = { 0.0f }; // No mask provided
-                std::vector<int64_t> hasMaskInputDims = { 1 };
+                std::vector<float> hasMaskInput = {0.0f}; // No mask provided
+                std::vector<int64_t> hasMaskInputDims = {1};
 
                 Ort::Value hasMaskInputTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
                     hasMaskInput.data(),
                     hasMaskInput.size(),
                     hasMaskInputDims.data(),
-                    hasMaskInputDims.size()
-                );
+                    hasMaskInputDims.size());
 
                 // Pass all inputs to the decoder
                 std::vector<Ort::Value> inputTensors;
@@ -389,7 +419,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                 inputTensors.push_back(std::move(maskInputTensor));
                 inputTensors.push_back(std::move(hasMaskInputTensor));
                 std::cout << "inputNodeNames: " << inputNodeNames.data() << std::endl;
-                for (auto& i : inputNodeNames)
+                for (auto &i : inputNodeNames)
                 {
                     std::cout << i << " inp inp ";
                 }
@@ -400,101 +430,130 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                     inputTensors.data(),
                     inputTensors.size(),
                     outputNodeNames.data(),
-                    outputNodeNames.size()
-                );
+                    outputNodeNames.size());
 
-            // Process decoder output (masks)
-if (output_tensors.size() > 0) {
-    // Get the masks from the output tensor
-    auto masksTensor = std::move(output_tensors[0]);  // First output should be the masks
-    auto masksInfo = masksTensor.GetTensorTypeAndShapeInfo();
-    auto masksShape = masksInfo.GetShape();
+                // Process decoder output (masks)
+                if (output_tensors.size() > 0)
+                {
+                    // Get the masks from the output tensor
+                    auto masksTensor = std::move(output_tensors[1]); // First output should be the masks PROBABLY WRONG
+                    auto masksInfo = masksTensor.GetTensorTypeAndShapeInfo();
+                    auto masksShape = masksInfo.GetShape();
 
-    // Debug print mask shape
-    std::cout << "Masks Tensor Shape: ";
-    for (auto dim : masksShape) {
-        std::cout << dim << " ";
-    }
-    std::cout << std::endl;
+                    // Debug print mask shape
+                    std::cout << "Masks Tensor Shape: ";
+                    for (auto dim : masksShape)
+                    {
+                        std::cout << dim << " ";
+                    }
+                    std::cout << std::endl;
 
-    if (masksShape.size() == 4) {
-        auto masksData = masksTensor.GetTensorMutableData<float>();
-        size_t batchSize = masksShape[0]; // Usually 1
-        size_t numMasks = masksShape[1];  // Number of masks (typically 1)
-        size_t height = masksShape[2];    // Height of mask
-        size_t width = masksShape[3];     // Width of mask
+                    if (masksShape.size() == 4)
+                    {
+                        auto masksData = masksTensor.GetTensorMutableData<float>();
+                        size_t batchSize = masksShape[0]; // Usually 1
+                        size_t numMasks = masksShape[1];  // Number of masks (typically 1)
+                        size_t height = masksShape[2];    // Height of mask
+                        size_t width = masksShape[3];     // Width of mask
 
-        std::cout << "Processing " << numMasks << " masks..." << std::endl;
+                        std::cout << "Processing " << numMasks << " masks..." << std::endl;
 
-        for (size_t i = 0; i < numMasks; ++i) {
-            // Create OpenCV Mat for the mask
-            cv::Mat mask = cv::Mat::zeros(height, width, CV_8UC1);
+                        for (size_t i = 0; i < numMasks; ++i)
+                        {
+                            // Create OpenCV Mat for the mask
+                            cv::Mat mask = cv::Mat::zeros(height, width, CV_8UC1);
 
-            // Convert float mask to binary mask
-            for (size_t h = 0; h < height; ++h) {
-                for (size_t w = 0; w < width; ++w) {
-                    size_t idx = (i * height * width) + (h * width) + w;
-                    float value = masksData[idx];
-                    mask.at<uchar>(h, w) = (value > 0.5f) ? 255 : 0;  // Threshold at 0.5
+                            // Convert float mask to binary mask
+                            for (size_t h = 0; h < height; ++h)
+                            {
+                                for (size_t w = 0; w < width; ++w)
+                                {
+                                    size_t idx = (i * height * width) + (h * width) + w;
+                                    float value = masksData[idx];
+                                    mask.at<uchar>(h, w) = (value > 0.5f) ? 255 : 0; // Threshold at 0.5
+                                }
+                            }
+
+                            // Resize mask to original image size (accounting for any scaling)
+                            int limX, limY;
+                            int size = std::max(iImg.rows, iImg.cols);
+
+                            // Calculate limits for upscaling based on target dimensions
+                            if (iImg.rows > iImg.cols)
+                            {
+                                limX = size;
+                                limY = size * iImg.cols / iImg.rows;
+                            }
+                            else
+                            {
+                                limX = size * iImg.rows / iImg.cols;
+                                limY = size;
+                            }
+
+                            // Ensure limX and limY do not exceed the dimensions of the mask
+                            limX = std::min(limX, mask.cols);
+                            limY = std::min(limY, mask.rows);
+
+                            // Resize the mask to the target dimensions
+                            cv::resize(mask(cv::Rect(0, 0, limX, limY)), mask, cv::Size(iImg.cols, iImg.rows));
+                            // cv::resize(mask, mask, cv::Size(iImg.cols, iImg.rows));
+
+                            // Create or update a result
+                            DL_RESULT result;
+
+                            // If we want to preserve the embeddings from the encoder
+                            if (!oResult.empty())
+                            {
+                                result.embeddings = oResult.back().embeddings;
+                            }
+
+                            // Add the mask to the result
+                            result.masks.push_back(mask);
+
+                            /*// Add IoU scores if available (typically second tensor)
+                            if (output_tensors.size() > 1) {
+                                auto scoresTensor = std::move(output_tensors[1]);
+                                auto scoresData = scoresTensor.GetTensorMutableData<float>();
+                                if (i < scoresTensor.GetTensorTypeAndShapeInfo().GetShape()[1]) {
+                                    result.confidence = scoresData[i];
+                                    std::cout << "Mask confidence: " << result.confidence << std::endl;
+                                }
+                            }*/
+
+                            // Add the result to oResult
+                            oResult.push_back(result);
+
+                            // Visualize the mask on the input image
+                            cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
+                            colorMask.setTo(cv::Scalar(0, 0, 255), mask); // Red color for mask
+
+                            // Blend the original image with the colored mask
+                            cv::addWeighted(iImg, 1, colorMask, 0.3, 0.0, iImg);
+
+                            // Save or display the result
+                            cv::imwrite("segmentation_result_" + std::to_string(i) + ".jpg", iImg);
+                            cv::imwrite("mask_" + std::to_string(i) + ".jpg", mask);
+                        }
+                    }
+                    else
+                    {
+                        std::cerr << "[SAM]: Unexpected mask tensor shape." << std::endl;
+                    }
                 }
             }
-
-            // Resize mask to original image size (accounting for any scaling)
-            cv::resize(mask, mask, cv::Size(iImg.cols, iImg.rows));
-
-            // Create or update a result
-            DL_RESULT result;
-
-            // If we want to preserve the embeddings from the encoder
-            if (!oResult.empty()) {
-                result.embeddings = oResult.back().embeddings;
-            }
-
-            // Add the mask to the result
-            result.masks.push_back(mask);
-
-            // Add IoU scores if available (typically second tensor)
-            if (output_tensors.size() > 1) {
-                auto scoresTensor = std::move(output_tensors[1]);
-                auto scoresData = scoresTensor.GetTensorMutableData<float>();
-                if (i < scoresTensor.GetTensorTypeAndShapeInfo().GetShape()[1]) {
-                    result.confidence = scoresData[i];
-                    std::cout << "Mask confidence: " << result.confidence << std::endl;
-                }
-            }
-
-            // Add the result to oResult
-            oResult.push_back(result);
-
-            // Visualize the mask on the input image
-            cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
-            colorMask.setTo(cv::Scalar(0, 0, 255), mask);  // Red color for mask
-
-            // Blend the original image with the colored mask
-            cv::addWeighted(iImg, 0.7, colorMask, 0.3, 0.0, iImg);
-
-            // Save or display the result
-            cv::imwrite("segmentation_result_" + std::to_string(i) + ".jpg", iImg);
-            cv::imwrite("mask_" + std::to_string(i) + ".jpg", mask);
-        }
-    } else {
-        std::cerr << "[SAM]: Unexpected mask tensor shape." << std::endl;
-    }
-}
-            }
-            //Ort::Value inputTensor = Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
-                //Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                //blob, 3 * imgSize.at(0) * imgSize.at(1),
-                //inputNodeDims.data(),
-                //inputNodeDims.size());
+            // Ort::Value inputTensor = Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
+            // Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+            // blob, 3 * imgSize.at(0) * imgSize.at(1),
+            // inputNodeDims.data(),
+            // inputNodeDims.size());
             // Run the decoder session
-            //auto decoderOutputTensor = decoderSession->Run(
-                //Ort::RunOptions{ nullptr },
-                //decoderInputNodeNames.data(),
-                //&decoderInputTensor,
-                //1,
-                //decoderOutputNodeNames.data(),
-                //decoderOutputNodeNames.size()
+            // auto decoderOutputTensor = decoderSession->Run(
+            // Ort::RunOptions{ nullptr },
+            // decoderInputNodeNames.data(),
+            //&decoderInputTensor,
+            // 1,
+            // decoderOutputNodeNames.data(),
+            // decoderOutputNodeNames.size()
             //);
 
             // Process decoder output (if needed)
@@ -588,8 +647,8 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
 
             // Create dummy point coordinates and labels
             std::vector<cv::Rect> boundingBoxes = {
-                //cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
-                cv::Rect(50, 50, 150, 150) // Another example bounding box
+                // cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
+                cv::Rect(0, 0, 473, 359) // Another example bounding box
             };
             for (const auto& bbox : boundingBoxes) {
                 // Convert bounding box to points
