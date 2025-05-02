@@ -362,13 +362,20 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
                 std::vector<int64_t> pointCoordsDims = {1, 1, 2}; // 2 points, each with (x, y)
 
-                // Prepare decoder input data for the specified points
+                // Scale the points
+                // For landscape images (width >= height)
+                if (iImg.cols >= iImg.rows) {
+                    resizeScales = iImg.cols / (float)imgSize.at(0);
+                }
+                // For portrait images (height > width)
+                else {
+                    resizeScales = iImg.rows / (float)imgSize.at(0);
+                }
 
-                float scale = 1024.0f / std::max(iImg.rows, iImg.cols); // Calculate scaling factor
 
                 for (auto i : pointCoords)
                 {
-                    pointCoordsScaled.push_back(i * scale);
+                    pointCoordsScaled.push_back(i / resizeScales);
                 };
 
                 Ort::Value pointCoordsTensor = Ort::Value::CreateTensor<float>(
@@ -512,6 +519,26 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                             limX = std::min(limX, mask.cols);
                             limY = std::min(limY, mask.rows);
 
+                            // First, resize the mask to model input dimensions (1024x1024)
+                            cv::Mat preprocessedSizeMask;
+                            cv::resize(mask, preprocessedSizeMask, cv::Size(imgSize.at(0), imgSize.at(1)));
+                            // Calculate the dimensions of the actual image in the preprocessed space
+                            int effectiveWidth, effectiveHeight;
+                            if (iImg.cols >= iImg.rows) {
+                                effectiveWidth = imgSize.at(0);  // Full width (1024)
+                                effectiveHeight = int(iImg.rows / resizeScales);  // Scaled height
+                            } else {
+                                effectiveWidth = int(iImg.cols / resizeScales);  // Scaled width
+                                effectiveHeight = imgSize.at(1);  // Full height (1024)
+                            }
+
+                            // Create mask for original image
+                            cv::Mat finalMask = cv::Mat::zeros(iImg.rows, iImg.cols, CV_8UC1);
+
+                            // Extract active area (no padding) and resize to original dimensions
+                            cv::Mat activeAreaMask = preprocessedSizeMask(cv::Rect(0, 0, effectiveWidth, effectiveHeight));
+                            cv::resize(activeAreaMask, finalMask, cv::Size(iImg.cols, iImg.rows));
+
                             // Resize the mask to the target dimensions
                             cv::resize(mask(cv::Rect(0, 0, limX, limY)), mask, cv::Size(iImg.cols, iImg.rows));
                             // cv::resize(mask, mask, cv::Size(iImg.cols, iImg.rows));
@@ -526,7 +553,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                             }
 
                             // Add the mask to the result
-                            result.masks.push_back(mask);
+                            result.masks.push_back(finalMask);
 
                             /*// Add IoU scores if available (typically second tensor)
                             if (output_tensors.size() > 1) {
@@ -543,14 +570,14 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
                             // Visualize the mask on the input image
                             cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
-                            colorMask.setTo(cv::Scalar(0, 0, 255), mask); // Red color for mask
+                            colorMask.setTo(cv::Scalar(0, 0, 255), finalMask); // Red color for mask
 
                             // Blend the original image with the colored mask
                             cv::addWeighted(iImg, 1, colorMask, 0.3, 0.0, iImg);
 
                             // Save or display the result
                             cv::imwrite("segmentation_result_" + std::to_string(bestMaskIndex) + ".jpg", iImg);
-                            cv::imwrite("mask_" + std::to_string(bestMaskIndex) + ".jpg", mask);
+                            cv::imwrite("mask_" + std::to_string(bestMaskIndex) + ".jpg", finalMask);
 
                     }
                     else
@@ -680,10 +707,28 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
 
                 std::vector<int64_t> pointCoordsDims = { 1, 1, 2 }; // 2 points, each with (x, y)
 
+                std::vector<float> pointCoordsScaled;
+
+                // Scale the points
+                // For landscape images (width >= height)
+                if (iImg.cols >= iImg.rows) {
+                    resizeScales = iImg.cols / (float)imgSize.at(0);
+                }
+                // For portrait images (height > width)
+                else {
+                    resizeScales = iImg.rows / (float)imgSize.at(0);
+                }
+
+
+                for (auto i : pointCoords)
+                {
+                    pointCoordsScaled.push_back(i / resizeScales);
+                };
+
                 Ort::Value pointCoordsTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    pointCoords.data(),
-                    pointCoords.size(),
+                    pointCoordsScaled.data(),
+                    pointCoordsScaled.size(),
                     pointCoordsDims.data(),
                     pointCoordsDims.size()
                 );
