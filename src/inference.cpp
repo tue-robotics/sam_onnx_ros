@@ -326,13 +326,9 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
             /////////////////// DEBUG STOP /////////////////////
 
-            // Create dummy point coordinates and labels
-            // std::vector<cv::Rect> boundingBoxes = {
-            // cv::Rect(215, 650, 332, 195), // Example bounding box with (x, y, width, height)
-            // cv::Rect(0, 0, 1000, 1000) // Another example bounding box
-            // };
+            // Create  point coordinates and labels
 
-            /*
+
             // Create a window for user interaction
             namedWindow("Select and View Result", cv::WINDOW_AUTOSIZE);
 
@@ -345,23 +341,26 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                 std::cerr << "No valid bounding box selected." << std::endl;
                 return "[SAM]: NO valid Box.";
             }
-            */
+
             // cv::Rect bbox1(100, 30, 280, 320);
-            cv::Rect bbox1(138, 29, 170, 301);
+            //cv::Rect bbox1(138, 29, 170, 301);
             std::vector<cv::Rect> boundingBoxes;
-            boundingBoxes.push_back(bbox1);
+            boundingBoxes.push_back(bbox);
 
             for (const auto &bbox : boundingBoxes)
             {
-                // Convert bounding box to a vector of points
+                // Use center of bounding box as foreground point
+                float centerX = bbox.x + bbox.width/2;
+                float centerY = bbox.y + bbox.height/2;
+
                 std::vector<float> pointCoords = {
-                    static_cast<float>(bbox.x), static_cast<float>(bbox.y),                           // Top-left point
-                    static_cast<float>(bbox.x + bbox.width), static_cast<float>(bbox.y + bbox.height) // Bottom-right point
+                    centerX, centerY  // Center point (foreground)
                 };
+
 
                 std::vector<float> pointCoordsScaled;
 
-                std::vector<int64_t> pointCoordsDims = {1, 2, 2}; // 2 points, each with (x, y)
+                std::vector<int64_t> pointCoordsDims = {1, 1, 2}; // 2 points, each with (x, y)
 
                 // Prepare decoder input data for the specified points
 
@@ -380,8 +379,8 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                     pointCoordsDims.size());
 
                 // Labels for the points
-                std::vector<float> pointLabels = {1.0f, 0.0f}; // Foreground for top-left, background for bottom-right
-                std::vector<int64_t> pointLabelsDims = {1, 2};
+                std::vector<float> pointLabels = {1.0f}; // All points are foreground
+                std::vector<int64_t> pointLabelsDims = {1, 1};
 
                 Ort::Value pointLabelsTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
@@ -436,6 +435,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                 if (output_tensors.size() > 0)
                 {
                     // Get the masks from the output tensor
+                    auto scoresTensor = std::move(output_tensors[0]);  // IoU scores
                     auto masksTensor = std::move(output_tensors[1]); // First output should be the masks PROBABLY WRONG
                     auto masksInfo = masksTensor.GetTensorTypeAndShapeInfo();
                     auto masksShape = masksInfo.GetShape();
@@ -448,9 +448,12 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                     }
                     std::cout << std::endl;
 
+
                     if (masksShape.size() == 4)
                     {
                         auto masksData = masksTensor.GetTensorMutableData<float>();
+                        auto scoresData = scoresTensor.GetTensorMutableData<float>();
+
                         size_t batchSize = masksShape[0]; // Usually 1
                         size_t numMasks = masksShape[1];  // Number of masks (typically 1)
                         size_t height = masksShape[2];    // Height of mask
@@ -458,8 +461,23 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
                         std::cout << "Processing " << numMasks << " masks..." << std::endl;
 
+                        // Find the best mask (highest IoU score)
+                        float bestScore = -1;
+                        size_t bestMaskIndex = 0;
+
                         for (size_t i = 0; i < numMasks; ++i)
                         {
+
+                            float score = scoresData[i];
+                            std::cout << "Mask " << i << " score: " << score << std::endl;
+
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestMaskIndex = i;
+                            }
+                        }
+                            std::cout << "Selected best mask: " << bestMaskIndex << " with score: " << bestScore << std::endl;
+
                             // Create OpenCV Mat for the mask
                             cv::Mat mask = cv::Mat::zeros(height, width, CV_8UC1);
 
@@ -468,7 +486,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                             {
                                 for (size_t w = 0; w < width; ++w)
                                 {
-                                    size_t idx = (i * height * width) + (h * width) + w;
+                                    size_t idx = (bestMaskIndex * height * width) + (h * width) + w;
                                     float value = masksData[idx];
                                     mask.at<uchar>(h, w) = (value > 0.5f) ? 255 : 0; // Threshold at 0.5
                                 }
@@ -531,9 +549,9 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                             cv::addWeighted(iImg, 1, colorMask, 0.3, 0.0, iImg);
 
                             // Save or display the result
-                            cv::imwrite("segmentation_result_" + std::to_string(i) + ".jpg", iImg);
-                            cv::imwrite("mask_" + std::to_string(i) + ".jpg", mask);
-                        }
+                            cv::imwrite("segmentation_result_" + std::to_string(bestMaskIndex) + ".jpg", iImg);
+                            cv::imwrite("mask_" + std::to_string(bestMaskIndex) + ".jpg", mask);
+
                     }
                     else
                     {
@@ -579,10 +597,10 @@ char* SAM::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
         cv::cvtColor(iImg, oImg, cv::COLOR_GRAY2RGB);
     }
 
-    switch (modelType)
-    {
-    case SAM_SEGMENT_ENCODER:
-    {
+    //switch (modelType)
+    //{
+    //case SAM_SEGMENT_ENCODER:
+    //{
         if (iImg.cols >= iImg.rows)
         {
             resizeScales = iImg.cols / (float)iImgSize.at(0);
@@ -596,10 +614,10 @@ char* SAM::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
         cv::Mat tempImg = cv::Mat::zeros(iImgSize.at(0), iImgSize.at(1), CV_8UC3);
         oImg.copyTo(tempImg(cv::Rect(0, 0, oImg.cols, oImg.rows)));
         oImg = tempImg;
-        break;
-    }
+        //break;
+    //}
     // you can add more preprocess methods here for different SAM models
-    }
+    //}
     return RET_OK;
 }
 
@@ -652,11 +670,15 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
             };
             for (const auto& bbox : boundingBoxes) {
                 // Convert bounding box to points
+                // Use center of bounding box as foreground point
+                float centerX = bbox.x + bbox.width/2;
+                float centerY = bbox.y + bbox.height/2;
+
                 std::vector<float> pointCoords = {
-                    static_cast<float>(bbox.x), static_cast<float>(bbox.y),                     // Top-left point
-                    static_cast<float>(bbox.x + bbox.width), static_cast<float>(bbox.y + bbox.height) // Bottom-right point
+                    centerX, centerY  // Center point (foreground)
                 };
-                std::vector<int64_t> pointCoordsDims = { 1, 2, 2 }; // 2 points, each with (x, y)
+
+                std::vector<int64_t> pointCoordsDims = { 1, 1, 2 }; // 2 points, each with (x, y)
 
                 Ort::Value pointCoordsTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
@@ -667,8 +689,8 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
                 );
 
                 // Labels for the points
-                std::vector<float> pointLabels = { 1.0f, 0.0f }; // Foreground for top-left, background for bottom-right
-                std::vector<int64_t> pointLabelsDims = { 1, 2 };
+                std::vector<float> pointLabels = {1.0f}; // All points are foreground
+                std::vector<int64_t> pointLabelsDims = { 1, 1};
 
                 Ort::Value pointLabelsTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
