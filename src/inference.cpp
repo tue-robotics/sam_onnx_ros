@@ -49,6 +49,12 @@ const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
             cudaOption.device_id = 0;
             sessionOption.AppendExecutionProvider_CUDA(cudaOption);
         }
+
+        //OrtTensorRTProviderOptions trtOptions{};
+        //trtOptions.device_id = 0;
+        //trtOptions.trt_fp16_enable = true;
+        //sessionOption.AppendExecutionProvider_TensorRT(trtOptions);
+
         sessionOption.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
         sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
         sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
