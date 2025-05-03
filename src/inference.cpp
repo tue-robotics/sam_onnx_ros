@@ -1,4 +1,5 @@
 #include "inference.h"
+#include "utils.h"
 #include <regex>
 #include <typeinfo>
 
@@ -22,34 +23,6 @@ namespace Ort
 }
 #endif
 
-
-// Definition: Flattened image to blob (and normalizaed) for deep learning inference. Also reorganize from HWC to CHW.
-// Note: Not in the header file since it is not used outside of this file.
-template<typename T>
-char* BlobFromImage(cv::Mat& iImg, T& iBlob) {
-    int channels = iImg.channels();
-    int imgHeight = iImg.rows;
-    int imgWidth = iImg.cols;
-
-    for (int c = 0; c < channels; c++)
-    {
-        for (int h = 0; h < imgHeight; h++)
-        {
-            for (int w = 0; w < imgWidth; w++)
-            {
-                iBlob[c * imgWidth * imgHeight + h * imgWidth + w] = typename std::remove_pointer<T>::type(
-                    (iImg.at<cv::Vec3b>(h, w)[c]) / 255.0f);
-            }
-        }
-    }
-    return RET_OK;
-}
-
-void overlay(cv::Mat& image, const cv::Mat& mask) {
-    // Placeholder for the overlay logic
-    // This function should blend the mask with the original image
-    addWeighted(image, 0.5, mask, 0.5, 0, image);
-}
 
 const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
     const char* Ret = RET_OK;
@@ -159,14 +132,14 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
     #ifdef benchmark
         clock_t starttime_1 = clock();
     #endif // benchmark
-
+        Utils utilities;
         const char* Ret = RET_OK;
         cv::Mat processedImg;
-        PreProcess(iImg, imgSize, processedImg);
+        utilities.PreProcess(iImg, imgSize, processedImg);
         if (modelType < 4)
         {
             float* blob = new float[processedImg.total() * 3];
-            BlobFromImage(processedImg, blob);
+            utilities.BlobFromImage(processedImg, blob);
             std::vector<int64_t> inputNodeDims;
             if (modelType == SAM_SEGMENT_ENCODER)
             {
@@ -183,7 +156,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
                 inputNodeDims = { 1, 256, 64, 64 };
             }
-            TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult);
+            TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities);
         }
         else
         {
@@ -191,7 +164,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             half* blob = new half[processedImg.total() * 3];
             BlobFromImage(processedImg, blob);
             std::vector<int64_t> inputNodeDims = { 1,3,imgSize.at(0),imgSize.at(1) };
-            TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
+            TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities);
     #endif
         }
 
@@ -200,7 +173,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
     template<typename N>
     char* SAM::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
-        MODEL_TYPE modelType, std::vector<DL_RESULT>& oResult) {
+        MODEL_TYPE modelType, std::vector<DL_RESULT>& oResult, Utils& utilities) {
 
         switch (modelType)
         {
@@ -362,74 +335,38 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
                 std::vector<int64_t> pointCoordsDims = {1, 1, 2}; // 2 points, each with (x, y)
 
-                // Scale the points
-                // For landscape images (width >= height)
-                if (iImg.cols >= iImg.rows) {
-                    resizeScales = iImg.cols / (float)imgSize.at(0);
-                }
-                // For portrait images (height > width)
-                else {
-                    resizeScales = iImg.rows / (float)imgSize.at(0);
-                }
-
-
-                for (auto i : pointCoords)
-                {
-                    pointCoordsScaled.push_back(i / resizeScales);
-                };
-
-                Ort::Value pointCoordsTensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    pointCoordsScaled.data(),
-                    pointCoordsScaled.size(),
-                    pointCoordsDims.data(),
-                    pointCoordsDims.size());
-
                 // Labels for the points
                 std::vector<float> pointLabels = {1.0f}; // All points are foreground
                 std::vector<int64_t> pointLabelsDims = {1, 1};
-
-                Ort::Value pointLabelsTensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    pointLabels.data(),
-                    pointLabels.size(),
-                    pointLabelsDims.data(),
-                    pointLabelsDims.size());
 
                 // Create dummy mask_input and has_mask_input
                 std::vector<float> maskInput(256 * 256, 0.0f); // Fill with zeros
                 std::vector<int64_t> maskInputDims = {1, 1, 256, 256};
 
-                Ort::Value maskInputTensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    maskInput.data(),
-                    maskInput.size(),
-                    maskInputDims.data(),
-                    maskInputDims.size());
 
                 std::vector<float> hasMaskInput = {0.0f}; // No mask provided
                 std::vector<int64_t> hasMaskInputDims = {1};
 
-                Ort::Value hasMaskInputTensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    hasMaskInput.data(),
-                    hasMaskInput.size(),
-                    hasMaskInputDims.data(),
-                    hasMaskInputDims.size());
+                utilities.ScaleBboxPoints(iImg, imgSize, pointCoords, pointCoordsScaled);
 
-                // Pass all inputs to the decoder
-                std::vector<Ort::Value> inputTensors;
-                inputTensors.push_back(std::move(decoderInputTensor));
-                inputTensors.push_back(std::move(pointCoordsTensor));
-                inputTensors.push_back(std::move(pointLabelsTensor));
-                inputTensors.push_back(std::move(maskInputTensor));
-                inputTensors.push_back(std::move(hasMaskInputTensor));
-                std::cout << "inputNodeNames: " << inputNodeNames.data() << std::endl;
-                for (auto &i : inputNodeNames)
-                {
-                    std::cout << i << " inp inp ";
-                }
 
+
+
+                std::vector<Ort::Value> inputTensors  = utilities.PrepareInputTensor(
+                    decoderInputTensor,
+                    pointCoordsScaled,
+                    pointCoordsDims,
+                    pointLabels,
+                    pointLabelsDims,
+                    maskInput,
+                    maskInputDims,
+                    hasMaskInput,
+                    hasMaskInputDims
+                );
+
+            #ifdef benchmark
+                starttime_2 = clock();
+            #endif // benchmark
                 auto output_tensors = session->Run(
                     options,
                     inputNodeNames.data(),
@@ -612,52 +549,16 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
     }
 
 
-char* SAM::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
-{
-    if (iImg.channels() == 3)
-    {
-        oImg = iImg.clone();
-        cv::cvtColor(oImg, oImg, cv::COLOR_BGR2RGB);
-    }
-    else
-    {
-        cv::cvtColor(iImg, oImg, cv::COLOR_GRAY2RGB);
-    }
-
-    //switch (modelType)
-    //{
-    //case SAM_SEGMENT_ENCODER:
-    //{
-        if (iImg.cols >= iImg.rows)
-        {
-            resizeScales = iImg.cols / (float)iImgSize.at(0);
-            cv::resize(oImg, oImg, cv::Size(iImgSize.at(0), int(iImg.rows / resizeScales)));
-        }
-        else
-        {
-            resizeScales = iImg.rows / (float)iImgSize.at(0);
-            cv::resize(oImg, oImg, cv::Size(int(iImg.cols / resizeScales), iImgSize.at(1)));
-        }
-        cv::Mat tempImg = cv::Mat::zeros(iImgSize.at(0), iImgSize.at(1), CV_8UC3);
-        oImg.copyTo(tempImg(cv::Rect(0, 0, oImg.cols, oImg.rows)));
-        oImg = tempImg;
-        //break;
-    //}
-    // you can add more preprocess methods here for different SAM models
-    //}
-    return RET_OK;
-}
-
-
 char* SAM::WarmUpSession(MODEL_TYPE modelType) {
     clock_t starttime_1 = clock();
+    Utils utilities;
     cv::Mat iImg = cv::Mat(cv::Size(imgSize.at(0), imgSize.at(1)), CV_8UC3);
     cv::Mat processedImg;
-    PreProcess(iImg, imgSize, processedImg);
+    utilities.PreProcess(iImg, imgSize, processedImg);
     if (modelType < 4)
     {
         float* blob = new float[iImg.total() * 3];
-        BlobFromImage(processedImg, blob);
+        utilities.BlobFromImage(processedImg, blob);
         std::vector<int64_t> SAM_input_node_dims = { 1, 3, imgSize.at(0), imgSize.at(1) };
         switch (modelType)
         {
@@ -709,72 +610,28 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
 
                 std::vector<float> pointCoordsScaled;
 
-                // Scale the points
-                // For landscape images (width >= height)
-                if (iImg.cols >= iImg.rows) {
-                    resizeScales = iImg.cols / (float)imgSize.at(0);
-                }
-                // For portrait images (height > width)
-                else {
-                    resizeScales = iImg.rows / (float)imgSize.at(0);
-                }
-
-
-                for (auto i : pointCoords)
-                {
-                    pointCoordsScaled.push_back(i / resizeScales);
-                };
-
-                Ort::Value pointCoordsTensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    pointCoordsScaled.data(),
-                    pointCoordsScaled.size(),
-                    pointCoordsDims.data(),
-                    pointCoordsDims.size()
-                );
+                utilities.ScaleBboxPoints(iImg, imgSize, pointCoords, pointCoordsScaled);
 
                 // Labels for the points
                 std::vector<float> pointLabels = {1.0f}; // All points are foreground
                 std::vector<int64_t> pointLabelsDims = { 1, 1};
-
-                Ort::Value pointLabelsTensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    pointLabels.data(),
-                    pointLabels.size(),
-                    pointLabelsDims.data(),
-                    pointLabelsDims.size()
-                );
-
                 // Create dummy mask_input and has_mask_input
                 std::vector<float> maskInput(256 * 256, 0.0f); // Fill with zeros
                 std::vector<int64_t> maskInputDims = { 1, 1, 256, 256 };
-
-                Ort::Value maskInputTensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    maskInput.data(),
-                    maskInput.size(),
-                    maskInputDims.data(),
-                    maskInputDims.size()
-                );
-
                 std::vector<float> hasMaskInput = { 0.0f }; // No mask provided
                 std::vector<int64_t> hasMaskInputDims = { 1 };
 
-                Ort::Value hasMaskInputTensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    hasMaskInput.data(),
-                    hasMaskInput.size(),
-                    hasMaskInputDims.data(),
-                    hasMaskInputDims.size()
+                std::vector<Ort::Value> inputTensors  = utilities.PrepareInputTensor(
+                    decoderInputTensor,
+                    pointCoordsScaled,
+                    pointCoordsDims,
+                    pointLabels,
+                    pointLabelsDims,
+                    maskInput,
+                    maskInputDims,
+                    hasMaskInput,
+                    hasMaskInputDims
                 );
-
-                // Pass all inputs to the decoder
-                std::vector<Ort::Value> inputTensors;
-                inputTensors.push_back(std::move(decoderInputTensor));
-                inputTensors.push_back(std::move(pointCoordsTensor));
-                inputTensors.push_back(std::move(pointLabelsTensor));
-                inputTensors.push_back(std::move(maskInputTensor));
-                inputTensors.push_back(std::move(hasMaskInputTensor));
 
                 auto output_tensors = session->Run(
                     options,

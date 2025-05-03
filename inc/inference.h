@@ -39,11 +39,9 @@ public:
 
     template<typename N>
     char* TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
-        MODEL_TYPE modelType, std::vector<DL_RESULT>& oResult);
+        MODEL_TYPE modelType, std::vector<DL_RESULT>& oResult, Utils& utilities);
 
-    char* PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
 
-    void overlay(cv::Mat& image, const cv::Mat& mask);
 
     std::vector<std::string> classes{};
 
@@ -59,5 +57,5 @@ private:
     std::vector<int> imgSize;
     float rectConfidenceThreshold;
     float iouThreshold;
-    float resizeScales;//letterbox scale
+
 };

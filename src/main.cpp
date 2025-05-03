@@ -15,7 +15,6 @@ void SegmentAnything() {
     params.iouThreshold = 0.5;
     params.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_encoder.onnx";
     params.imgSize = { 1024, 1024 };
-    std::cout << params << "params" <<std::endl;
     samSegmentor->CreateSession(params);
 
     //Running inference
