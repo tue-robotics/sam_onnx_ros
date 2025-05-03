@@ -223,13 +223,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             std::vector<float> embeddings = oResult.back().embeddings;
             // Create tensor for decoder
             std::vector<int64_t> decoderInputDims = { 1, 256, 64, 64 }; // Adjust based on your decoder's requirements
-            Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
-                Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                embeddings.data(), // Use the embeddings from the encoder
-                embeddings.size(), // Total number of elements
-                decoderInputDims.data(),
-                decoderInputDims.size()
-            );
+
 
             // Create  point coordinates and labels
 
@@ -248,9 +242,10 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             }
 
             // cv::Rect bbox1(100, 30, 280, 320);
-            //cv::Rect bbox1(138, 29, 170, 301);
+            cv::Rect bbox1(138, 29, 170, 301);
             std::vector<cv::Rect> boundingBoxes;
             boundingBoxes.push_back(bbox);
+            boundingBoxes.push_back(bbox1);
             // Declare timing variables BEFORE the loop
             #ifdef benchmark
             clock_t starttime_2 = 0;
@@ -259,6 +254,13 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
             for (const auto &bbox : boundingBoxes)
             {
+                Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
+                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                    embeddings.data(), // Use the embeddings from the encoder
+                    embeddings.size(), // Total number of elements
+                    decoderInputDims.data(),
+                    decoderInputDims.size()
+                );
                 // Use center of bounding box as foreground point
                 float centerX = bbox.x + bbox.width/2;
                 float centerY = bbox.y + bbox.height/2;
@@ -316,9 +318,10 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                 starttime_3 = clock();
             #endif // benchmark
 
-                delete[] blob;
+
                     utilities.overlay(output_tensors, iImg, imgSize, oResult);
                 }
+            delete[] blob;
 
         #ifdef benchmark
             clock_t starttime_4 = clock();
@@ -379,20 +382,21 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
             // Use embeddings from the last result
             std::vector<float> dummyEmbeddings(256 * 64 * 64, 1.0f); // Fill with zeros or any dummy values
             std::vector<int64_t> decoderInputDims = { 1, 256, 64, 64 }; // Adjust based on your decoder's requirements
-            Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
-                Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                dummyEmbeddings.data(), // Use the embeddings from the encoder
-                dummyEmbeddings.size(), // Total number of elements
-                decoderInputDims.data(),
-                decoderInputDims.size()
-            );
+
 
             // Create dummy point coordinates and labels
             std::vector<cv::Rect> boundingBoxes = {
-                // cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
+                cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
                 cv::Rect(0, 0, 473, 359) // Another example bounding box
             };
             for (const auto& bbox : boundingBoxes) {
+                Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
+                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                    dummyEmbeddings.data(), // Use the embeddings from the encoder
+                    dummyEmbeddings.size(), // Total number of elements
+                    decoderInputDims.data(),
+                    decoderInputDims.size()
+                );
                 // Convert bounding box to points
                 // Use center of bounding box as foreground point
                 float centerX = bbox.x + bbox.width/2;
