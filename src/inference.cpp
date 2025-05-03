@@ -149,7 +149,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
         {
     #ifdef USE_CUDA
             half* blob = new half[processedImg.total() * 3];
-            BlobFromImage(processedImg, blob);
+            utilities.BlobFromImage(processedImg, blob);
             std::vector<int64_t> inputNodeDims = { 1,3,imgSize.at(0),imgSize.at(1) };
             TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities);
     #endif
@@ -450,7 +450,7 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
     {
 #ifdef USE_CUDA
         half* blob = new half[iImg.total() * 3];
-        BlobFromImage(processedImg, blob);
+        utilities.BlobFromImage(processedImg, blob);
         std::vector<int64_t> SAM_input_node_dims = { 1,3,imgSize.at(0),imgSize.at(1) };
         Ort::Value input_tensor = Ort::Value::CreateTensor<half>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1), SAM_input_node_dims.data(), SAM_input_node_dims.size());
         auto output_tensors = session->Run(options, inputNodeNames.data(), &input_tensor, 1, outputNodeNames.data(), outputNodeNames.size());
