@@ -116,14 +116,6 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std:
         auto masksInfo = masksTensor.GetTensorTypeAndShapeInfo();
         auto masksShape = masksInfo.GetShape();
 
-        // Debug print mask shape
-        std::cout << "Masks Tensor Shape: ";
-        for (auto dim : masksShape)
-        {
-            std::cout << dim << " ";
-        }
-        std::cout << std::endl;
-
 
         if (masksShape.size() == 4)
         {
@@ -135,7 +127,6 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std:
             size_t height = masksShape[2];    // Height of mask
             size_t width = masksShape[3];     // Width of mask
 
-            std::cout << "Processing " << numMasks << " masks..." << std::endl;
 
             // Find the best mask (highest IoU score)
             float bestScore = -1;

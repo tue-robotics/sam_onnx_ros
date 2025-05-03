@@ -12,7 +12,7 @@ SAM::SAM() {
 
 
 SAM::~SAM() {
-    delete session;
+    //delete session;
 }
 
 #ifdef USE_CUDA
@@ -63,7 +63,8 @@ const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
         const char* modelPath = iParams.modelPath.c_str();
 #endif // _WIN32
 
-        session = new Ort::Session(env, modelPath, sessionOption);
+        //session = new Ort::Session(env, modelPath, sessionOption);
+        session = std::make_unique<Ort::Session>(env, modelPath, sessionOption);
         Ort::AllocatorWithDefaultOptions allocator;
         size_t inputNodesNum = session->GetInputCount();
         inputNodeNames.clear();
