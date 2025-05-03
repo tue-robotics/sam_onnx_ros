@@ -96,21 +96,7 @@ const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
         auto input_shape = session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
         auto output_shape = session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
         auto output_type = session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementType();
-        std::cout << "output_type: " << output_type << std::endl;
-        //std::cout << "input_tensor_size: " << input_tensor_size << std::endl;
-        //std::cout << "output_tensor_size: " << output_tensor_size << std::endl;
-        std::cout << "input_shape: ";
-        for (auto i : input_shape)
-        {
-            std::cout << i << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "output_shape: ";
-        for (auto i : output_shape)
-        {
-            std::cout << i << " ";
-        }
-        std::cout << std::endl;
+
         WarmUpSession(modelType);
         return RET_OK;
     }
@@ -237,67 +223,6 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
                 decoderInputDims.data(),
                 decoderInputDims.size()
             );
-
-            /////////////////// DEBUG /////////////////////
-
-            std::cout << "Decoder Input Tensor Shape: ";
-            for (auto dim : decoderInputTensor.GetTensorTypeAndShapeInfo().GetShape()) {
-                std::cout << dim << " " << std::endl;
-            }
-
-            if (oResult.empty()) {
-                std::cerr << "[SAM]: No embeddings available from the encoder." << std::endl;
-                return "[SAM]: Decoder failed due to missing embeddings.";
-            }
-            std::cout << "Embeddings size: " << embeddings.size() << std::endl;
-            std::cout << "Creating decoderInputTensor with dimensions: ";
-            for (auto dim : decoderInputDims) {
-                std::cout << dim << " ";
-            }
-            std::cout << std::endl;
-            std::cout << "Input Node Names:" << std::endl;
-            for (const auto& name : inputNodeNames) {
-                std::cout << name << std::endl;
-            }
-            if (embeddings.size() != 256 * 64 * 64) {
-                std::cerr << "[SAM]: Embeddings size mismatch. Expected 256*64*64, got " << embeddings.size() << std::endl;
-                return "[SAM]: Decoder failed due to invalid embeddings.";
-            }
-            if (!decoderInputTensor.IsTensor()) {
-                std::cerr << "[SAM]: Failed to create decoderInputTensor." << std::endl;
-                return "[SAM]: Tensor creation failed.";
-            }
-
-            std::cout << "First 10 values of embeddings: ";
-            for (size_t i = 0; i < 10; ++i) {
-                std::cout << embeddings[i] << " ";
-            }
-            std::cout << std::endl;
-
-            std::cout << "Embeddings data pointer: " << static_cast<const void*>(embeddings.data()) << std::endl;
-
-            if (embeddings.size() != 256 * 64 * 64) {
-                std::cerr << "[SAM]: Embeddings size mismatch. Expected 256*64*64, got " << embeddings.size() << std::endl;
-                return "[SAM]: Decoder failed due to invalid embeddings.";
-            }
-
-            std::cout << "Input Node Names and Corresponding Tensors:" << std::endl;
-            for (size_t i = 0; i < inputNodeNames.size(); ++i) {
-                std::cout << inputNodeNames[i] << " -> Tensor " << i << std::endl;
-            }
-
-            // Debug: Print the first few values of decoderInputTensor
-            float* tensorData = decoderInputTensor.GetTensorMutableData<float>();
-            std::cout << "First 10 values of decoderInputTensor: ";
-            for (size_t i = 0; i < 10; ++i) {
-                std::cout << tensorData[i] << " ";
-            }
-            std::cout << std::endl;
-
-            // Debug: Print the data pointer of decoderInputTensor
-            std::cout << "decoderInputTensor data pointer: " << static_cast<const void*>(tensorData) << std::endl;
-
-            /////////////////// DEBUG STOP /////////////////////
 
             // Create  point coordinates and labels
 

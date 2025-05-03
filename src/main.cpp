@@ -35,12 +35,9 @@ void SegmentAnything() {
             params1 = params;
             params1.modelType = SAM_SEGMENT_DECODER;
             params1.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_mask_decoder.onnx";
-            std::cout << params1 << "params1" << std::endl;
-            //params.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/FastSAM-x.onnx";
             samSegmentor->CreateSession(params1);
             modelTypeRef = params1.modelType;
             samSegmentor->RunSession(img, res, modelTypeRef);
-            //samSegmentorDecoder->RunSession(img, res, modelPathRef);
             std::cout << "Press any key to exit" << std::endl;
             cv::imshow("Result of Detection", img);
             cv::waitKey(0);
