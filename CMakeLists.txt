@@ -25,6 +25,7 @@ include_directories(${ONNXRUNTIME_ROOT}/include)
 set(PROJECT_SOURCES
         src/main.cpp
         src/inference.cpp
+        src/utils.cpp
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
