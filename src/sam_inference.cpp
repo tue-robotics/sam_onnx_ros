@@ -1,4 +1,4 @@
-#include "inference.h"
+#include "sam_inference.h"
 #include "utils.h"
 #include <regex>
 #include <typeinfo>
@@ -242,10 +242,10 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             }
 
             // cv::Rect bbox1(100, 30, 280, 320);
-            cv::Rect bbox1(138, 29, 170, 301);
+            //cv::Rect bbox1(138, 29, 170, 301);
             std::vector<cv::Rect> boundingBoxes;
             boundingBoxes.push_back(bbox);
-            boundingBoxes.push_back(bbox1);
+            //boundingBoxes.push_back(bbox1);
             // Declare timing variables BEFORE the loop
             #ifdef benchmark
             clock_t starttime_2 = 0;
@@ -387,7 +387,7 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
             // Create dummy point coordinates and labels
             std::vector<cv::Rect> boundingBoxes = {
                 cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
-                cv::Rect(0, 0, 473, 359) // Another example bounding box
+                //cv::Rect(0, 0, 473, 359) // Another example bounding box
             };
             for (const auto& bbox : boundingBoxes) {
                 Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(

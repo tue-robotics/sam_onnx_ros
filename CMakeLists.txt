@@ -19,12 +19,12 @@ set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../onnxruntime-linux-x64-gpu-1
 include_directories(${ONNXRUNTIME_ROOT}/include)
 
 # -------------- Cuda ------------------#
-#add_definitions(-DUSE_CUDA=1)
-#include_directories(/usr/local/cuda/include)
+add_definitions(-DUSE_CUDA=1)
+include_directories(/usr/local/cuda/include)
 
 set(PROJECT_SOURCES
         src/main.cpp
-        src/inference.cpp
+        src/sam_inference.cpp
         src/utils.cpp
 )
 
