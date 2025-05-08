@@ -1,6 +1,7 @@
 #pragma once
-
-enum MODEL_TYPE_SAM
+namespace SEG
+{
+enum MODEL_TYPE
 {
     //FLOAT32 MODEL
     SAM_SEGMENT_ENCODER = 1,
@@ -14,11 +15,11 @@ enum MODEL_TYPE_SAM
 };
 
 
-typedef struct _DL_INIT_PARAM_SAM
+typedef struct _DL_INIT_PARAM
 {
     // Yolo & Common Part
     std::string modelPath;
-    MODEL_TYPE_SAM modelType = SAM_SEGMENT_ENCODER;
+    MODEL_TYPE modelType = SAM_SEGMENT_ENCODER;
     std::vector<int> imgSize = { 640, 640 };
     float rectConfidenceThreshold = 0.6;
     float iouThreshold = 0.5;
@@ -26,7 +27,7 @@ typedef struct _DL_INIT_PARAM_SAM
     bool cudaEnable = false;
     int logSeverityLevel = 3;
     int intraOpNumThreads = 1;
-    cv::Rect box;
+    //std::vector<cv::Rect> boxes; // For SAM encoder model, this will be filled with detected boxes
 
     friend std::ostream& operator<<(std::ostream& os, _DL_INIT_PARAM& param)
     {
@@ -45,16 +46,16 @@ typedef struct _DL_INIT_PARAM_SAM
         return os;
     }
 
-} DL_INIT_PARAM_SAM;
+} DL_INIT_PARAM;
 
 
-typedef struct _DL_RESULT_SAM
+typedef struct _DL_RESULT
 {
 
     //Yolo Part
     int classId;
     float confidence;
-    cv::Rect box;
+    std::vector<cv::Rect> boxes; // For SAM encoder model, this will be filled with detected boxes
     std::vector<cv::Point2f> keyPoints;
 
     // Sam Part
@@ -62,4 +63,6 @@ typedef struct _DL_RESULT_SAM
     // Masks for SAM decoder model output
     std::vector<cv::Mat> masks; // Each cv::Mat represents a mask
 
-} DL_RESULT_SAM;
+
+} DL_RESULT;
+} // namespace SEG

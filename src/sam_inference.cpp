@@ -24,7 +24,7 @@ namespace Ort
 #endif
 
 
-const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
+const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams) {
     const char* Ret = RET_OK;
     std::regex pattern("[\u4e00-\u9fa5]");
     bool result = std::regex_search(iParams.modelPath, pattern);
@@ -121,7 +121,7 @@ const char* SAM::CreateSession(DL_INIT_PARAM& iParams) {
 
 }
 
-const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODEL_TYPE modelType) {
+const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType) {
     #ifdef benchmark
         clock_t starttime_1 = clock();
     #endif // benchmark
@@ -134,11 +134,11 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             float* blob = new float[processedImg.total() * 3];
             utilities.BlobFromImage(processedImg, blob);
             std::vector<int64_t> inputNodeDims;
-            if (modelType == SAM_SEGMENT_ENCODER)
+            if (modelType == SEG::SAM_SEGMENT_ENCODER)
             {
                 inputNodeDims = { 1, 3, imgSize.at(0), imgSize.at(1) };
             }
-            else if (modelType == SAM_SEGMENT_DECODER)
+            else if (modelType == SEG::SAM_SEGMENT_DECODER)
             {
                 // For SAM decoder model, the input size is different
                 // Assuming the input size is 236x64x64 for the decoder
@@ -166,11 +166,11 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
     template<typename N>
     char* SAM::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
-        MODEL_TYPE modelType, std::vector<DL_RESULT>& oResult, Utils& utilities) {
+        SEG::MODEL_TYPE modelType, std::vector<SEG::DL_RESULT>& oResult, Utils& utilities) {
 
         switch (modelType)
         {
-        case SAM_SEGMENT_ENCODER:
+        case SEG::SAM_SEGMENT_ENCODER:
         // case OTHER_SAM_MODEL:
         {
 
@@ -193,7 +193,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             //std::vector<int64_t> outputNodeDims = outputTensor.front().GetTensorTypeAndShapeInfo().GetShape();
             delete[] blob;
 
-            DL_RESULT result;
+            SEG::DL_RESULT result;
             int embeddingSize = outputNodeDims[1] * outputNodeDims[2] * outputNodeDims[3]; // Flattened size
             result.embeddings.assign(output, output + embeddingSize); // Save embeddings
             oResult.push_back(result);
@@ -216,7 +216,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
             break;
         }
-        case SAM_SEGMENT_DECODER:
+        case SEG::SAM_SEGMENT_DECODER:
         //case <OTHER MODEL>:
         {
             // Use embeddings from the last result
@@ -229,22 +229,23 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
 
             // Create a window for user interaction
-            namedWindow("Select and View Result", cv::WINDOW_AUTOSIZE);
+            //namedWindow("Select and View Result", cv::WINDOW_AUTOSIZE);
 
             // Let the user select the bounding box
-            cv::Rect bbox = selectROI("Select and View Result", iImg, false, false);
+            //cv::Rect bbox = selectROI("Select and View Result", iImg, false, false);
 
             // Check if a valid bounding box was selected
-            if (bbox.width == 0 || bbox.height == 0)
-            {
-                std::cerr << "No valid bounding box selected." << std::endl;
-                return "[SAM]: NO valid Box.";
-            }
+            //if (bbox.width == 0 || bbox.height == 0)
+            //{
+                //std::cerr << "No valid bounding box selected." << std::endl;
+                //return "[SAM]: NO valid Box.";
+            //}
 
             // cv::Rect bbox1(100, 30, 280, 320);
             //cv::Rect bbox1(138, 29, 170, 301);
-            std::vector<cv::Rect> boundingBoxes;
-            boundingBoxes.push_back(bbox);
+
+            //std::vector<cv::Rect> boundingBoxes;
+            //boundingBoxes.push_back(bbox);
             //boundingBoxes.push_back(bbox1);
             // Declare timing variables BEFORE the loop
             #ifdef benchmark
@@ -252,7 +253,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
             clock_t starttime_3 = 0;
             #endif // benchmark
 
-            for (const auto &bbox : boundingBoxes)
+            for (const auto &bbox : oResult[0].boxes)
             {
                 Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
@@ -320,6 +321,10 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
 
 
                     utilities.overlay(output_tensors, iImg, imgSize, oResult);
+                    std::cout << "Press any key to exit" << std::endl;
+            cv::imshow("Result of Detection", iImg);
+            cv::waitKey(0);
+            cv::destroyAllWindows();
                 }
             delete[] blob;
 
@@ -348,7 +353,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODE
     }
 
 
-char* SAM::WarmUpSession(MODEL_TYPE modelType) {
+char* SAM::WarmUpSession(SEG::MODEL_TYPE modelType) {
     clock_t starttime_1 = clock();
     Utils utilities;
     cv::Mat iImg = cv::Mat(cv::Size(imgSize.at(0), imgSize.at(1)), CV_8UC3);
@@ -361,7 +366,7 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
         std::vector<int64_t> SAM_input_node_dims = { 1, 3, imgSize.at(0), imgSize.at(1) };
         switch (modelType)
         {
-        case SAM_SEGMENT_ENCODER: {
+        case SEG::SAM_SEGMENT_ENCODER: {
             Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
                 Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
                 SAM_input_node_dims.data(), SAM_input_node_dims.size());
@@ -377,7 +382,7 @@ char* SAM::WarmUpSession(MODEL_TYPE modelType) {
             break;
         }
 
-        case SAM_SEGMENT_DECODER: {
+        case SEG::SAM_SEGMENT_DECODER: {
             std::vector<int64_t> inputNodeDims = { 1, 256, 64, 64 }; // BUG: That was 236 instead of 256
             // Use embeddings from the last result
             std::vector<float> dummyEmbeddings(256 * 64 * 64, 1.0f); // Fill with zeros or any dummy values

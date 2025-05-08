@@ -106,7 +106,7 @@ inputTensors.push_back(std::move(hasMaskInputTensor));
 
 return inputTensors;
 }
-void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std::vector<int> imgSize, std::vector<DL_RESULT>& oResult){
+void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std::vector<int> imgSize, std::vector<SEG::DL_RESULT>& oResult){
     // Process decoder output (masks)
     if (output_tensors.size() > 0)
     {
@@ -202,7 +202,7 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std:
                 // cv::resize(mask, mask, cv::Size(iImg.cols, iImg.rows));
 
                 // Create or update a result
-                DL_RESULT result;
+                SEG::DL_RESULT result;
 
                 // If we want to preserve the embeddings from the encoder
                 if (!oResult.empty())

@@ -10,8 +10,8 @@
 void SegmentAnything() {
 
     SAM* samSegmentor = new SAM;
-    DL_INIT_PARAM params;
-    DL_INIT_PARAM params1;
+    SEG::DL_INIT_PARAM params;
+    SEG::DL_INIT_PARAM params1;
 
     params.rectConfidenceThreshold = 0.1;
     params.iouThreshold = 0.5;
@@ -19,7 +19,7 @@ void SegmentAnything() {
     params.imgSize = { 1024, 1024 };
 
     params1 = params;
-    params1.modelType = SAM_SEGMENT_DECODER;
+    params1.modelType = SEG::SAM_SEGMENT_DECODER;
     params1.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_mask_decoder.onnx";
 
 
@@ -33,16 +33,16 @@ void SegmentAnything() {
 
     //Running inference
     std::filesystem::path current_path = std::filesystem::current_path();
-    std::filesystem::path imgs_path = current_path / "sam_inference/build/images";
+    std::filesystem::path imgs_path = current_path / "images";
     for (auto& i : std::filesystem::directory_iterator(imgs_path))
     {
         if (i.path().extension() == ".jpg" || i.path().extension() == ".png" || i.path().extension() == ".jpeg")
         {
             std::string img_path = i.path().string();
             cv::Mat img = cv::imread(img_path);
-            std::vector<DL_RESULT> res;
+            std::vector<SEG::DL_RESULT> res;
             samSegmentor->CreateSession(params);
-            MODEL_TYPE modelTypeRef = params.modelType;
+            SEG::MODEL_TYPE modelTypeRef = params.modelType;
             samSegmentor->RunSession(img, res, modelTypeRef);
 
 

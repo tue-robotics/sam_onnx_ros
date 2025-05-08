@@ -31,15 +31,15 @@ public:
 
 public:
 
-    const char* CreateSession(DL_INIT_PARAM& iParams);
+    const char* CreateSession(SEG::DL_INIT_PARAM& iParams);
 
-    const char* RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult, MODEL_TYPE modelType);
+    const char* RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType);
 
-    char* WarmUpSession(MODEL_TYPE modelType);
+    char* WarmUpSession(SEG::MODEL_TYPE modelType);
 
     template<typename N>
     char* TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
-        MODEL_TYPE modelType, std::vector<DL_RESULT>& oResult, Utils& utilities);
+        SEG::MODEL_TYPE modelType, std::vector<SEG::DL_RESULT>& oResult, Utils& utilities);
 
 
 
@@ -53,7 +53,7 @@ private:
     std::vector<const char*> inputNodeNames;
     std::vector<const char*> outputNodeNames;
 
-    MODEL_TYPE modelType;
+    SEG::MODEL_TYPE modelType;
     std::vector<int> imgSize;
     float rectConfidenceThreshold;
     float iouThreshold;
