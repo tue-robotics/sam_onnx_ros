@@ -4,7 +4,7 @@
 #include <typeinfo>
 
 #define benchmark
-// #define ROI
+#define ROI
 // #define min(a,b)            (((a) < (b)) ? (a) : (b))
 
 SAM::SAM() {
@@ -122,7 +122,7 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams) {
 
 }
 
-const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType) {
+const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType, SEG::DL_RESULT& result) {
     #ifdef benchmark
         clock_t starttime_1 = clock();
     #endif // benchmark
@@ -150,7 +150,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
 
                 inputNodeDims = { 1, 256, 64, 64 };
             }
-            TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities);
+            TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities, result);
         }
         else
         {
@@ -158,7 +158,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
             half* blob = new half[processedImg.total() * 3];
             utilities.BlobFromImage(processedImg, blob);
             std::vector<int64_t> inputNodeDims = { 1,3,imgSize.at(0),imgSize.at(1) };
-            TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities);
+            TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities, result);
     #endif
         }
 
@@ -167,7 +167,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
 
     template<typename N>
     char* SAM::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
-        SEG::MODEL_TYPE modelType, std::vector<SEG::DL_RESULT>& oResult, Utils& utilities) {
+        SEG::MODEL_TYPE modelType, std::vector<SEG::DL_RESULT>& oResult, Utils& utilities, SEG::DL_RESULT& result) {
 
         switch (modelType)
         {
@@ -194,10 +194,8 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
             //std::vector<int64_t> outputNodeDims = outputTensor.front().GetTensorTypeAndShapeInfo().GetShape();
             delete[] blob;
 
-            SEG::DL_RESULT result;
             int embeddingSize = outputNodeDims[1] * outputNodeDims[2] * outputNodeDims[3]; // Flattened size
             result.embeddings.assign(output, output + embeddingSize); // Save embeddings
-            oResult.push_back(result);
 
 
     #ifdef benchmark
@@ -221,7 +219,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
         //case <OTHER MODEL>:
         {
             // Use embeddings from the last result
-            std::vector<float> embeddings = oResult.back().embeddings;
+            std::vector<float> embeddings = result.embeddings;
             // Create tensor for decoder
             std::vector<int64_t> decoderInputDims = { 1, 256, 64, 64 }; // Adjust based on your decoder's requirements
 
@@ -257,7 +255,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
         #ifdef ROI
             for (const auto &bbox : boundingBoxes)
         #else
-            for (const auto &bbox : oResult[0].boxes)
+            for (const auto &bbox : result.boxes)
         #endif // ROI
             {
                 Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
@@ -325,12 +323,15 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
             #endif // benchmark
 
 
-                utilities.overlay(output_tensors, iImg, imgSize, oResult);
+                utilities.overlay(output_tensors, iImg, imgSize, result);
                 std::cout << "Press any key to exit" << std::endl;
                 cv::imshow("Result of INTERMEDIATE Detection", iImg);
                 cv::waitKey(0);
                 cv::destroyAllWindows();
             }
+            // Add the result to oResult
+            oResult.push_back(result);
+
             delete[] blob;
 
         #ifdef benchmark

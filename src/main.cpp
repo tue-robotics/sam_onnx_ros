@@ -33,24 +33,26 @@ void SegmentAnything() {
 
     //Running inference
     std::filesystem::path current_path = std::filesystem::current_path();
-    std::filesystem::path imgs_path = current_path / "images";
+    std::filesystem::path imgs_path = current_path / "../../pipeline/build/images";
+    std::vector<SEG::DL_RESULT> resSam;
     for (auto& i : std::filesystem::directory_iterator(imgs_path))
     {
         if (i.path().extension() == ".jpg" || i.path().extension() == ".png" || i.path().extension() == ".jpeg")
         {
             std::string img_path = i.path().string();
             cv::Mat img = cv::imread(img_path);
-            std::vector<SEG::DL_RESULT> res;
+
+            SEG::DL_RESULT res;
             samSegmentor->CreateSession(params);
             SEG::MODEL_TYPE modelTypeRef = params.modelType;
-            samSegmentor->RunSession(img, res, modelTypeRef);
+            samSegmentor->RunSession(img, resSam, modelTypeRef, res);
 
 
 
 
             samSegmentor->CreateSession(params1);
             modelTypeRef = params1.modelType;
-            samSegmentor->RunSession(img, res, modelTypeRef);
+            samSegmentor->RunSession(img, resSam, modelTypeRef, res);
             std::cout << "Press any key to exit" << std::endl;
             cv::imshow("Result of Detection", img);
             cv::waitKey(0);

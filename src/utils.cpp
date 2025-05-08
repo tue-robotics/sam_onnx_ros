@@ -119,7 +119,7 @@ inputTensors.push_back(std::move(hasMaskInputTensor));
 
 return inputTensors;
 }
-void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std::vector<int> imgSize, std::vector<SEG::DL_RESULT>& oResult){
+void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std::vector<int> imgSize, SEG::DL_RESULT& result){
     // Process decoder output (masks)
     if (output_tensors.size() > 0)
     {
@@ -195,14 +195,6 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std:
             cv::Mat finalMask;
             cv::resize(croppedMask, finalMask, cv::Size(iImg.cols, iImg.rows));
 
-            // Create or update a result
-            SEG::DL_RESULT result;
-
-            // If we want to preserve the embeddings from the encoder
-            if (!oResult.empty())
-            {
-                result.embeddings = oResult.back().embeddings;
-            }
 
             // Add the mask to the result
             result.masks.push_back(finalMask);
@@ -217,8 +209,6 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std:
                 }
             }*/
 
-            // Add the result to oResult
-            oResult.push_back(result);
 
             // Visualize the mask on the input image
             cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
