@@ -4,6 +4,7 @@
 #include <typeinfo>
 
 #define benchmark
+// #define ROI
 // #define min(a,b)            (((a) < (b)) ? (a) : (b))
 
 SAM::SAM() {
@@ -226,26 +227,26 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
 
 
             // Create  point coordinates and labels
-
+    #ifdef ROI
 
             // Create a window for user interaction
-            //namedWindow("Select and View Result", cv::WINDOW_AUTOSIZE);
+            namedWindow("Select and View Result", cv::WINDOW_AUTOSIZE);
 
             // Let the user select the bounding box
-            //cv::Rect bbox = selectROI("Select and View Result", iImg, false, false);
+            cv::Rect bbox = selectROI("Select and View Result", iImg, false, false);
 
             // Check if a valid bounding box was selected
-            //if (bbox.width == 0 || bbox.height == 0)
-            //{
-                //std::cerr << "No valid bounding box selected." << std::endl;
-                //return "[SAM]: NO valid Box.";
-            //}
+            if (bbox.width == 0 || bbox.height == 0)
+            {
+                std::cerr << "No valid bounding box selected." << std::endl;
+                return "[SAM]: NO valid Box.";
+            }
 
-            // cv::Rect bbox1(100, 30, 280, 320);
             //cv::Rect bbox1(138, 29, 170, 301);
 
-            //std::vector<cv::Rect> boundingBoxes;
-            //boundingBoxes.push_back(bbox);
+            std::vector<cv::Rect> boundingBoxes;
+            boundingBoxes.push_back(bbox);
+    #endif // ROI
             //boundingBoxes.push_back(bbox1);
             // Declare timing variables BEFORE the loop
             #ifdef benchmark
@@ -253,7 +254,11 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
             clock_t starttime_3 = 0;
             #endif // benchmark
 
+        #ifdef ROI
+            for (const auto &bbox : boundingBoxes)
+        #else
             for (const auto &bbox : oResult[0].boxes)
+        #endif // ROI
             {
                 Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
@@ -320,12 +325,12 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
             #endif // benchmark
 
 
-                    utilities.overlay(output_tensors, iImg, imgSize, oResult);
-                    std::cout << "Press any key to exit" << std::endl;
-            cv::imshow("Result of Detection", iImg);
-            cv::waitKey(0);
-            cv::destroyAllWindows();
-                }
+                utilities.overlay(output_tensors, iImg, imgSize, oResult);
+                std::cout << "Press any key to exit" << std::endl;
+                cv::imshow("Result of INTERMEDIATE Detection", iImg);
+                cv::waitKey(0);
+                cv::destroyAllWindows();
+            }
             delete[] blob;
 
         #ifdef benchmark
