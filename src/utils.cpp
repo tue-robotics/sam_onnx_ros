@@ -40,19 +40,32 @@ char* Utils::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
 
 void Utils::ScaleBboxPoints(cv::Mat& iImg, std::vector<int> imgSize, std::vector<float>& pointCoords, std::vector<float>& pointCoordsScaled){
 
-    // For landscape images (width >= height)
+    pointCoordsScaled.clear();
+
+    // Calculate same scale as preprocessing
+    float scale;
     if (iImg.cols >= iImg.rows) {
-        resizeScalesBbox = iImg.cols / (float)imgSize.at(0);
-    }
-    // For portrait images (height > width)
-    else {
-        resizeScalesBbox = iImg.rows / (float)imgSize.at(0);
+        scale = imgSize[0] / (float)iImg.cols;
+        resizeScalesBbox = iImg.cols / (float)imgSize[0];
+    } else {
+        scale = imgSize[1] / (float)iImg.rows;
+        resizeScalesBbox = iImg.rows / (float)imgSize[1];
     }
 
-    for (auto i : pointCoords)
-    {
-        pointCoordsScaled.push_back(i / resizeScalesBbox);
-    };
+    // TOP-LEFT placement (matching PreProcess)
+    for (size_t i = 0; i < pointCoords.size(); i += 2) {
+        if (i + 1 < pointCoords.size()) {
+            float x = pointCoords[i];
+            float y = pointCoords[i + 1];
+
+            // Simply scale coordinates - NO padding addition
+            float scaledX = x * scale;
+            float scaledY = y * scale;
+
+            pointCoordsScaled.push_back(scaledX);
+            pointCoordsScaled.push_back(scaledY);
+        }
+    }
 }
 
 std::vector<Ort::Value> Utils::PrepareInputTensor(Ort::Value& decoderInputTensor, std::vector<float>& pointCoordsScaled, std::vector<int64_t> pointCoordsDims, std::vector<float>& pointLabels,
@@ -157,85 +170,66 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std:
                     }
                 }
 
-                // Resize mask to original image size (accounting for any scaling)
-                int limX, limY;
-                int size = std::max(iImg.rows, iImg.cols);
+                // 1. Calculate the dimensions the image had during preprocessing
+            float scale;
+            int processedWidth, processedHeight;
+            if (iImg.cols >= iImg.rows) {
+                scale = (float)imgSize[0] / iImg.cols;
+                processedWidth = imgSize[0];
+                processedHeight = int(iImg.rows * scale);
+            } else {
+                scale = (float)imgSize[1] / iImg.rows;
+                processedWidth = int(iImg.cols * scale);
+                processedHeight = imgSize[1];
+            }
+            // 2. Resize mask to match the SAM input dimensions
+            cv::Mat resizedMask;
+            cv::resize(mask, resizedMask, cv::Size(256, 256));
 
-                // Calculate limits for upscaling based on target dimensions
-                if (iImg.rows > iImg.cols)
-                {
-                    limX = size;
-                    limY = size * iImg.cols / iImg.rows;
+            // 3. Extract the portion that corresponds to the actual image (no padding)
+            int cropWidth = std::min(256, int(256 * processedWidth / (float)imgSize[0]));
+            int cropHeight = std::min(256, int(256 * processedHeight / (float)imgSize[1]));
+            cv::Mat croppedMask = resizedMask(cv::Rect(0, 0, cropWidth, cropHeight));
+
+            // 4. Resize directly to original image dimensions in one step
+            cv::Mat finalMask;
+            cv::resize(croppedMask, finalMask, cv::Size(iImg.cols, iImg.rows));
+
+            // Create or update a result
+            SEG::DL_RESULT result;
+
+            // If we want to preserve the embeddings from the encoder
+            if (!oResult.empty())
+            {
+                result.embeddings = oResult.back().embeddings;
+            }
+
+            // Add the mask to the result
+            result.masks.push_back(finalMask);
+
+            /*// Add IoU scores if available (typically second tensor)
+            if (output_tensors.size() > 1) {
+                auto scoresTensor = std::move(output_tensors[1]);
+                auto scoresData = scoresTensor.GetTensorMutableData<float>();
+                if (i < scoresTensor.GetTensorTypeAndShapeInfo().GetShape()[1]) {
+                    result.confidence = scoresData[i];
+                    std::cout << "Mask confidence: " << result.confidence << std::endl;
                 }
-                else
-                {
-                    limX = size * iImg.rows / iImg.cols;
-                    limY = size;
-                }
+            }*/
 
-                // Ensure limX and limY do not exceed the dimensions of the mask
-                limX = std::min(limX, mask.cols);
-                limY = std::min(limY, mask.rows);
+            // Add the result to oResult
+            oResult.push_back(result);
 
-                // First, resize the mask to model input dimensions (1024x1024)
-                cv::Mat preprocessedSizeMask;
-                cv::resize(mask, preprocessedSizeMask, cv::Size(imgSize.at(0), imgSize.at(1)));
-                // Calculate the dimensions of the actual image in the preprocessed space
-                int effectiveWidth, effectiveHeight;
-                if (iImg.cols >= iImg.rows) {
-                    effectiveWidth = imgSize.at(0);  // Full width (1024)
-                    effectiveHeight = int(iImg.rows / resizeScalesBbox);  // Scaled height
-                } else {
-                    effectiveWidth = int(iImg.cols / resizeScalesBbox);  // Scaled width
-                    effectiveHeight = imgSize.at(1);  // Full height (1024)
-                }
+            // Visualize the mask on the input image
+            cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
+            colorMask.setTo(cv::Scalar(255, 0, 0), finalMask); // Red color for mask
 
-                // Create mask for original image
-                cv::Mat finalMask = cv::Mat::zeros(iImg.rows, iImg.cols, CV_8UC1);
+            // Blend the original image with the colored mask
+            cv::addWeighted(iImg, 1, colorMask, 0.9, 0.6, iImg);
 
-                // Extract active area (no padding) and resize to original dimensions
-                cv::Mat activeAreaMask = preprocessedSizeMask(cv::Rect(0, 0, effectiveWidth, effectiveHeight));
-                cv::resize(activeAreaMask, finalMask, cv::Size(iImg.cols, iImg.rows));
-
-                // Resize the mask to the target dimensions
-                cv::resize(mask(cv::Rect(0, 0, limX, limY)), mask, cv::Size(iImg.cols, iImg.rows));
-                // cv::resize(mask, mask, cv::Size(iImg.cols, iImg.rows));
-
-                // Create or update a result
-                SEG::DL_RESULT result;
-
-                // If we want to preserve the embeddings from the encoder
-                if (!oResult.empty())
-                {
-                    result.embeddings = oResult.back().embeddings;
-                }
-
-                // Add the mask to the result
-                result.masks.push_back(finalMask);
-
-                /*// Add IoU scores if available (typically second tensor)
-                if (output_tensors.size() > 1) {
-                    auto scoresTensor = std::move(output_tensors[1]);
-                    auto scoresData = scoresTensor.GetTensorMutableData<float>();
-                    if (i < scoresTensor.GetTensorTypeAndShapeInfo().GetShape()[1]) {
-                        result.confidence = scoresData[i];
-                        std::cout << "Mask confidence: " << result.confidence << std::endl;
-                    }
-                }*/
-
-                // Add the result to oResult
-                oResult.push_back(result);
-
-                // Visualize the mask on the input image
-                cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
-                colorMask.setTo(cv::Scalar(0, 0, 255), finalMask); // Red color for mask
-
-                // Blend the original image with the colored mask
-                cv::addWeighted(iImg, 1, colorMask, 0.3, 0.0, iImg);
-
-                // Save or display the result
-                cv::imwrite("segmentation_result_" + std::to_string(bestMaskIndex) + ".jpg", iImg);
-                cv::imwrite("mask_" + std::to_string(bestMaskIndex) + ".jpg", finalMask);
+            // Save or display the result
+            cv::imwrite("segmentation_result_" + std::to_string(bestMaskIndex) + ".jpg", iImg);
+            cv::imwrite("mask_" + std::to_string(bestMaskIndex) + ".jpg", finalMask);
             }else
             {
                 std::cerr << "[SAM]: Unexpected mask tensor shape." << std::endl;
