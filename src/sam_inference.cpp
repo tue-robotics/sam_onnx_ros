@@ -4,7 +4,7 @@
 #include <typeinfo>
 
 #define benchmark
-#define ROI
+//#define ROI
 // #define min(a,b)            (((a) < (b)) ? (a) : (b))
 
 SAM::SAM() {
@@ -269,18 +269,20 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
                 float centerX = bbox.x + bbox.width/2;
                 float centerY = bbox.y + bbox.height/2;
 
+                // Convert bounding box to points
                 std::vector<float> pointCoords = {
-                    centerX, centerY  // Center point (foreground)
+                    (float)bbox.x, (float)bbox.y,                              // Top-left
+                    (float)(bbox.x + bbox.width), (float)(bbox.y + bbox.height) // Bottom-right
                 };
 
 
                 std::vector<float> pointCoordsScaled;
 
-                std::vector<int64_t> pointCoordsDims = {1, 1, 2}; // 2 points, each with (x, y)
+                std::vector<int64_t> pointCoordsDims = {1, 2, 2}; // 2 points, each with (x, y)
 
                 // Labels for the points
-                std::vector<float> pointLabels = {1.0f}; // All points are foreground
-                std::vector<int64_t> pointLabelsDims = {1, 1};
+                std::vector<float> pointLabels = {2.0f, 3.0f}; // Box prompt labels
+                std::vector<int64_t> pointLabelsDims = {1, 2};
 
                 // Create dummy mask_input and has_mask_input
                 std::vector<float> maskInput(256 * 256, 0.0f); // Fill with zeros
