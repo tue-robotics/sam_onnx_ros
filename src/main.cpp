@@ -15,12 +15,12 @@ void SegmentAnything() {
 
     params.rectConfidenceThreshold = 0.1;
     params.iouThreshold = 0.5;
-    params.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_encoder.onnx";
+    params.modelPath = "SAM_encoder.onnx";
     params.imgSize = { 1024, 1024 };
 
     params1 = params;
     params1.modelType = SEG::SAM_SEGMENT_DECODER;
-    params1.modelPath = "/home/amigo/Documents/repos/hero_sam/sam_inference/model/SAM_mask_decoder.onnx";
+    params1.modelPath = "SAM_mask_decoder.onnx";
 
 
     #ifdef USE_CUDA
