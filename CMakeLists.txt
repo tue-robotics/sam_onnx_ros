@@ -19,12 +19,12 @@ set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../onnxruntime-linux-x64-gpu-1
 include_directories(${ONNXRUNTIME_ROOT}/include)
 
 # -------------- Cuda ------------------#
-#add_definitions(-DUSE_CUDA=1)
-#include_directories(/usr/local/cuda/include)
+add_definitions(-DUSE_CUDA=1)
+include_directories(/usr/local/cuda/include)
 
 set(PROJECT_SOURCES
         src/main.cpp
-        src/inference.cpp
+        src/sam_inference.cpp
         src/utils.cpp
 )
 
@@ -44,7 +44,7 @@ endif ()
 
 # Download https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/cfg/datasets/coco.yaml
 # and put it in the same folder of the executable file
-configure_file(./model/SAM_encoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_mask_decoder.onnx  COPYONLY)
+configure_file(./model/SAM_mask_decoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_mask_decoder.onnx  COPYONLY)
 
 # Copy yolov8n.onnx file to the same folder of the executable file
 configure_file(./model/SAM_encoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_encoder.onnx COPYONLY)

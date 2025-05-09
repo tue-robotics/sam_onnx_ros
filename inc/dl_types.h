@@ -1,16 +1,17 @@
 #pragma once
-
+namespace SEG
+{
 enum MODEL_TYPE
 {
     //FLOAT32 MODEL
     SAM_SEGMENT_ENCODER = 1,
     SAM_SEGMENT_DECODER = 2,
-    YOLO_CLS = 3,
+    //YOLO_CLS = 3,
 
     //FLOAT16 MODEL
-    YOLO_DETECT_V8_HALF = 4,
-    YOLO_POSE_V8_HALF = 5,
-    YOLO_CLS_HALF = 6
+    //YOLO_DETECT_V8_HALF = 4,
+    //YOLO_POSE_V8_HALF = 5,
+    //YOLO_CLS_HALF = 6
 };
 
 
@@ -26,6 +27,7 @@ typedef struct _DL_INIT_PARAM
     bool cudaEnable = false;
     int logSeverityLevel = 3;
     int intraOpNumThreads = 1;
+    //std::vector<cv::Rect> boxes; // For SAM encoder model, this will be filled with detected boxes
 
     friend std::ostream& operator<<(std::ostream& os, _DL_INIT_PARAM& param)
     {
@@ -53,7 +55,7 @@ typedef struct _DL_RESULT
     //Yolo Part
     int classId;
     float confidence;
-    cv::Rect box;
+    std::vector<cv::Rect> boxes; // For SAM encoder model, this will be filled with detected boxes
     std::vector<cv::Point2f> keyPoints;
 
     // Sam Part
@@ -61,4 +63,6 @@ typedef struct _DL_RESULT
     // Masks for SAM decoder model output
     std::vector<cv::Mat> masks; // Each cv::Mat represents a mask
 
+
 } DL_RESULT;
+} // namespace SEG

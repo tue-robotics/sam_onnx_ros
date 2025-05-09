@@ -24,7 +24,7 @@ class Utils
         Utils();
         ~Utils();
 
-        void overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std::vector<int> iImgSize, std::vector<DL_RESULT>& oResult);
+        void overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std::vector<int> iImgSize, SEG::DL_RESULT& result);
         char* PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
         void ScaleBboxPoints(cv::Mat& iImg, std::vector<int> iImgSize, std::vector<float>& pointCoords, std::vector<float>& PointsCoordsScaled);
 
