@@ -8,7 +8,7 @@ Utils::Utils(){
 Utils::~Utils(){
 }
 
-char* Utils::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
+char* Utils::PreProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
 {
     if (iImg.channels() == 3)
     {
@@ -38,7 +38,7 @@ char* Utils::PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
     return RET_OK;
 }
 
-void Utils::ScaleBboxPoints(cv::Mat& iImg, std::vector<int> imgSize, std::vector<float>& pointCoords, std::vector<float>& pointCoordsScaled){
+void Utils::ScaleBboxPoints(const cv::Mat& iImg, std::vector<int> imgSize, std::vector<float>& pointCoords, std::vector<float>& pointCoordsScaled){
 
     pointCoordsScaled.clear();
 
@@ -119,7 +119,7 @@ inputTensors.push_back(std::move(hasMaskInputTensor));
 
 return inputTensors;
 }
-void Utils::overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std::vector<int> imgSize, SEG::DL_RESULT& result){
+void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg, std::vector<int> imgSize, SEG::DL_RESULT& result){
     // Process decoder output (masks)
     if (output_tensors.size() > 0)
     {

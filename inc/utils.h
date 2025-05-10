@@ -24,9 +24,9 @@ class Utils
         Utils();
         ~Utils();
 
-        void overlay(std::vector<Ort::Value>& output_tensors, cv::Mat& iImg, std::vector<int> iImgSize, SEG::DL_RESULT& result);
-        char* PreProcess(cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
-        void ScaleBboxPoints(cv::Mat& iImg, std::vector<int> iImgSize, std::vector<float>& pointCoords, std::vector<float>& PointsCoordsScaled);
+        void overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg, std::vector<int> iImgSize, SEG::DL_RESULT& result);
+        char* PreProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
+        void ScaleBboxPoints(const cv::Mat& iImg, std::vector<int> iImgSize, std::vector<float>& pointCoords, std::vector<float>& PointsCoordsScaled);
 
         std::vector<Ort::Value> PrepareInputTensor(Ort::Value& decoderInputTensor, std::vector<float>& pointCoordsScaled, std::vector<int64_t> pointCoordsDims,
                                                     std::vector<float>& pointLabels, std::vector<int64_t> pointLabelsDims, std::vector<float>& maskInput,
@@ -35,7 +35,7 @@ class Utils
         // Definition: Flattened image to blob (and normalizaed) for deep learning inference. Also reorganize from HWC to CHW.
         // Note: Code in header file since it is used outside of this utils src code.
         template<typename T>
-        char* BlobFromImage(cv::Mat& iImg, T& iBlob) {
+        char* BlobFromImage(const cv::Mat& iImg, T& iBlob) {
             int channels = iImg.channels();
             int imgHeight = iImg.rows;
             int imgWidth = iImg.cols;

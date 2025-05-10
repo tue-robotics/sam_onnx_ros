@@ -122,7 +122,7 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams) {
 
 }
 
-const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType, SEG::DL_RESULT& result) {
+const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType, SEG::DL_RESULT& result) {
     #ifdef benchmark
         clock_t starttime_1 = clock();
     #endif // benchmark
@@ -166,7 +166,7 @@ const char* SAM::RunSession(cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult,
     }
 
     template<typename N>
-    char* SAM::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
+    char* SAM::TensorProcess(clock_t& starttime_1, const cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
         SEG::MODEL_TYPE modelType, std::vector<SEG::DL_RESULT>& oResult, Utils& utilities, SEG::DL_RESULT& result) {
 
         switch (modelType)
