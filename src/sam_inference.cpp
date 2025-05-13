@@ -326,10 +326,10 @@ const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oR
 
 
                 utilities.overlay(output_tensors, iImg, imgSize, result);
-                std::cout << "Press any key to exit" << std::endl;
-                cv::imshow("Result of INTERMEDIATE Detection", iImg);
-                cv::waitKey(0);
-                cv::destroyAllWindows();
+                //std::cout << "Press any key to exit" << std::endl;
+                //cv::imshow("Result of INTERMEDIATE Detection", iImg);
+                //cv::waitKey(0);
+                //cv::destroyAllWindows();
             }
             // Add the result to oResult
             oResult.push_back(result);
