@@ -13,7 +13,13 @@ SAM::SAM() {
 
 
 SAM::~SAM() {
-    //delete session;
+    // Clean up input/output node names
+    for (auto& name : inputNodeNames) {
+        delete[] name;
+    }
+    for (auto& name : outputNodeNames) {
+        delete[] name;
+    }
 }
 
 #ifdef USE_CUDA
@@ -27,6 +33,20 @@ namespace Ort
 
 const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams) {
     const char* Ret = RET_OK;
+    if (session) {
+        session.reset(); // Release previous session
+
+        // Clear node names
+        for (auto& name : inputNodeNames) {
+            delete[] name;
+        }
+        inputNodeNames.clear();
+
+        for (auto& name : outputNodeNames) {
+            delete[] name;
+        }
+        outputNodeNames.clear();
+    }
     std::regex pattern("[\u4e00-\u9fa5]");
     bool result = std::regex_search(iParams.modelPath, pattern);
     if (result)
@@ -74,8 +94,6 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams) {
         session = std::make_unique<Ort::Session>(env, modelPath, sessionOption);
         Ort::AllocatorWithDefaultOptions allocator;
         size_t inputNodesNum = session->GetInputCount();
-        inputNodeNames.clear();
-        outputNodeNames.clear();
         for (size_t i = 0; i < inputNodesNum; i++)
         {
             Ort::AllocatedStringPtr input_node_name = session->GetInputNameAllocated(i, allocator);
