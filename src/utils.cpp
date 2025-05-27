@@ -221,10 +221,6 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg
             }*/
 
 
-            // Draw mask outline and fill with semi-transparent color
-            cv::Mat visualized = iImg.clone();
-            cv::Mat mask_display;
-
             // Find contours of the mask
             std::vector<std::vector<cv::Point>> contours;
             cv::findContours(finalMask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -232,8 +228,6 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg
             // Create a semi-transparent overlay
             cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
             colorMask.setTo(cv::Scalar(0, 200, 0), finalMask); // Green fill
-
-            // Apply semi-transparent fill
             cv::addWeighted(iImg, 0.7, colorMask, 0.3, 0, iImg);
 
             // Draw contours with a thick, high-contrast outline
