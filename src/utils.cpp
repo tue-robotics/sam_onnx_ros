@@ -183,18 +183,29 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg
                 processedHeight = imgSize[1];
             }
             // 2. Resize mask to match the SAM input dimensions
-            cv::Mat resizedMask;
-            cv::resize(mask, resizedMask, cv::Size(256, 256));
+            //cv::Mat resizedMask;
+            //cv::resize(mask, resizedMask, cv::Size(256, 256));
 
             // 3. Extract the portion that corresponds to the actual image (no padding)
             int cropWidth = std::min(256, int(256 * processedWidth / (float)imgSize[0]));
             int cropHeight = std::min(256, int(256 * processedHeight / (float)imgSize[1]));
-            cv::Mat croppedMask = resizedMask(cv::Rect(0, 0, cropWidth, cropHeight));
+            cv::Mat croppedMask = mask(cv::Rect(0, 0, cropWidth, cropHeight));
 
             // 4. Resize directly to original image dimensions in one step
             cv::Mat finalMask;
-            cv::resize(croppedMask, finalMask, cv::Size(iImg.cols, iImg.rows));
 
+            // Use INTER_NEAREST for binary masks - preserves hard edges
+            cv::resize(croppedMask, finalMask, cv::Size(iImg.cols, iImg.rows), 0, 0, cv::INTER_NEAREST);
+
+            // Re-threshold after resizing to ensure binary mask (critical step)
+            cv::threshold(finalMask, finalMask, 127, 255, cv::THRESH_BINARY);
+
+            // Morphological operations to clean up the mask
+            //int kernelSize = std::max(3, std::min(iImg.cols, iImg.rows) / 100); // Adaptive size
+            //cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernelSize, kernelSize));
+
+            // CLOSE operation: fills small holes in the mask
+            //cv::morphologyEx(finalMask, finalMask, cv::MORPH_CLOSE, kernel);
 
             // Add the mask to the result
             result.masks.push_back(finalMask);
@@ -210,12 +221,24 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg
             }*/
 
 
-            // Visualize the mask on the input image
-            cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
-            colorMask.setTo(cv::Scalar(255, 0, 0), finalMask); // Red color for mask
+            // Draw mask outline and fill with semi-transparent color
+            cv::Mat visualized = iImg.clone();
+            cv::Mat mask_display;
 
-            // Blend the original image with the colored mask
-            cv::addWeighted(iImg, 1, colorMask, 0.9, 0.6, iImg);
+            // Find contours of the mask
+            std::vector<std::vector<cv::Point>> contours;
+            cv::findContours(finalMask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+            // Create a semi-transparent overlay
+            cv::Mat colorMask = cv::Mat::zeros(iImg.size(), CV_8UC3);
+            colorMask.setTo(cv::Scalar(0, 200, 0), finalMask); // Green fill
+
+            // Apply semi-transparent fill
+            cv::addWeighted(iImg, 0.7, colorMask, 0.3, 0, iImg);
+
+            // Draw contours with a thick, high-contrast outline
+            cv::drawContours(iImg, contours, -1, cv::Scalar(0, 255, 255), 2); // Yellow outline
+
 
             // Save or display the result
             cv::imwrite("segmentation_result_" + std::to_string(bestMaskIndex) + ".jpg", iImg);
