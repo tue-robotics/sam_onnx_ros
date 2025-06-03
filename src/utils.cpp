@@ -1,4 +1,6 @@
 #include "utils.h"
+#include <opencv2/ximgproc/edge_filter.hpp> // for guided filter
+
 // Constructor
 Utils::Utils(){
 
@@ -155,7 +157,7 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg
                     bestMaskIndex = i;
                 }
             }
-
+            std::cout << "Best mask index: " << bestMaskIndex << ", Score: " << bestScore << std::endl;
                 // Create OpenCV Mat for the mask
                 cv::Mat mask = cv::Mat::zeros(height, width, CV_8UC1);
 
@@ -197,17 +199,36 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg
             // Use INTER_NEAREST for binary masks - preserves hard edges
             cv::resize(croppedMask, finalMask, cv::Size(iImg.cols, iImg.rows), 0, 0, cv::INTER_NEAREST);
 
-            // Re-threshold after resizing to ensure binary mask (critical step)
-            cv::threshold(finalMask, finalMask, 127, 255, cv::THRESH_BINARY);
+            ////////////////////// GUIDED BILATERAL FILTER /////////////////////////
+            // Convert the upscaled mask to CV_8UC1 if necessary
+            if (finalMask.type() != CV_8UC1)
+            {
+                finalMask.convertTo(finalMask, CV_8UC1);
+            }
 
+            // Apply the Guided Filter
+            // cv::Mat filteredMask;
+            int radius = 2;
+            double eps = 0.01;
+            cv::ximgproc::guidedFilter(iImg, finalMask, finalMask, radius, eps);
+            ////////////////////// END: GUIDED BILATERAL FILTER /////////////////////////
+
+            ////////////////////// MORPHOLOGICAN OPERATIONS /////////////////////////
             // Morphological operations to clean up the mask
-            //int kernelSize = std::max(3, std::min(iImg.cols, iImg.rows) / 100); // Adaptive size
-            //cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernelSize, kernelSize));
+            int kernelSize = std::max(5, std::min(iImg.cols, iImg.rows) / 100); // Adaptive size
+            cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernelSize, kernelSize));
 
             // CLOSE operation: fills small holes in the mask
-            //cv::morphologyEx(finalMask, finalMask, cv::MORPH_CLOSE, kernel);
+            cv::morphologyEx(finalMask, finalMask, cv::MORPH_CLOSE, kernel);
 
-            // Add the mask to the result
+            // OPEN operation: removes small noise
+            cv::morphologyEx(finalMask, finalMask, cv::MORPH_OPEN, kernel);
+
+            ////////////////////// END: MORPHOLOGICAN OPERATIONS /////////////////////////
+
+            // Re-threshold after resizing to ensure binary mask (critical step)
+
+            cv::threshold(finalMask, finalMask, 127, 255, cv::THRESH_BINARY);
             result.masks.push_back(finalMask);
 
             /*// Add IoU scores if available (typically second tensor)
