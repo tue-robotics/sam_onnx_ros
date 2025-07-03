@@ -4,7 +4,7 @@
 #include <typeinfo>
 
 #define benchmark
-//#define ROI
+#define ROI
 // #define min(a,b)            (((a) < (b)) ? (a) : (b))
 
 SAM::SAM() {
