@@ -29,6 +29,7 @@ typedef struct _DL_INIT_PARAM
     int intraOpNumThreads = 1;
     //std::vector<cv::Rect> boxes; // For SAM encoder model, this will be filled with detected boxes
 
+    // Overloaded output operator for _DL_INIT_PARAM to print its contents
     friend std::ostream& operator<<(std::ostream& os, _DL_INIT_PARAM& param)
     {
         os << "modelPath: " << param.modelPath << "\n";

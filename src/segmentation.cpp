@@ -35,7 +35,7 @@ std::tuple<std::vector<std::unique_ptr<SAM>>, SEG::DL_INIT_PARAM, SEG::DL_INIT_P
     return {std::move(samSegmentors), params_encoder, params_decoder};
 }
 
-void SegmentAnything(std::vector<std::unique_ptr<SAM>>& samSegmentors, SEG::DL_INIT_PARAM& params_encoder, SEG::DL_INIT_PARAM& params_decoder, cv::Mat& img) {
+std::vector<cv::Mat> SegmentAnything(std::vector<std::unique_ptr<SAM>>& samSegmentors, SEG::DL_INIT_PARAM& params_encoder, SEG::DL_INIT_PARAM& params_decoder, cv::Mat& img) {
 
     std::vector<SEG::DL_RESULT> resSam;
     SEG::DL_RESULT res;
@@ -46,8 +46,15 @@ void SegmentAnything(std::vector<std::unique_ptr<SAM>>& samSegmentors, SEG::DL_I
 
     modelTypeRef = params_decoder.modelType;
     samSegmentors[1]->RunSession(img, resSam, modelTypeRef, res);
-    std::cout << "Press any key to exit" << std::endl;
-    cv::imshow("Result of Detection", img);
-    cv::waitKey(0);
+
+    //cv::destroyAllWindows();
+    cv::Mat finalMask = res.masks[0];
+    std::cout << "Final mask size: " << finalMask.size() << std::endl;
+
+    for (const auto& mask : res.masks) {
+        cv::imshow("Mask", mask);
+        cv::waitKey(0);
+    }
     cv::destroyAllWindows();
+    return std::move(res.masks);
 }
