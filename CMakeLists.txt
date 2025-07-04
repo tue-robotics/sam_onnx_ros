@@ -1,13 +1,17 @@
 cmake_minimum_required(VERSION 3.5)
 
 set(PROJECT_NAME SAMOnnxRuntimeCPPInference)
-project(${PROJECT_NAME} VERSION 0.0.1 LANGUAGES CXX)
+project(sam_onnx_ros)
+
+# -------------- CMake Policies ------------------#
+#add_compile_options(-Wall -Werror=all)
+#add_compile_options(-Wextra -Werror=extra)
 
 # -------------- Support C++17 for using filesystem  ------------------#
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
+#set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # -------------- OpenCV  ------------------#
 find_package(OpenCV REQUIRED)
@@ -22,6 +26,33 @@ include_directories(${ONNXRUNTIME_ROOT}/include)
 add_definitions(-DUSE_CUDA=1)
 include_directories(/usr/local/cuda/include)
 
+# find_package(catkin REQUIRED
+#   COMPONENTS
+#   onnxruntime_ros
+# )
+
+# ------------------------------------------------------------------------------------------------
+#                                        CATKIN EXPORT
+# ------------------------------------------------------------------------------------------------
+
+# catkin_package(
+#   INCLUDE_DIRS include
+#   LIBRARIES ${PROJECT_NAME}
+#   CATKIN_DEPENDS
+#   DEPENDS OpenCV
+# )
+
+# ------------------------------------------------------------------------------------------------
+#                                           BUILD
+# ------------------------------------------------------------------------------------------------
+
+include_directories(
+  include
+  SYSTEM
+  ${OpenCV_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+
 set(PROJECT_SOURCES
         src/main.cpp
         src/sam_inference.cpp
@@ -33,21 +64,11 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
 
 # Link OpenCV libraries along with ONNX Runtime
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so)
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${catkin_LIBRARIES} ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so)
 
-# For Windows system, copy onnxruntime.dll to the same folder of the executable file
-if (WIN32)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${ONNXRUNTIME_ROOT}/lib/onnxruntime.dll"
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>)
-endif ()
 
-# Download https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/cfg/datasets/coco.yaml
-# and put it in the same folder of the executable file
+# Copy sam_<model>.onnx file to the same folder of the executable file
 configure_file(../hero_sam/sam_inference/model/SAM_mask_decoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_mask_decoder.onnx  COPYONLY)
-
-# Copy yolov8n.onnx file to the same folder of the executable file
 configure_file(../hero_sam/sam_inference/model/SAM_encoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_encoder.onnx COPYONLY)
 
 # Create folder name images in the same folder of the executable file
