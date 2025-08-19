@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 set(PROJECT_NAME SAMOnnxRuntimeCPPInference)
 project(sam_onnx_ros)
+project(${PROJECT_NAME} VERSION 0.0.1 LANGUAGES CXX)
 
 # -------------- CMake Policies ------------------#
 #add_compile_options(-Wall -Werror=all)
@@ -17,6 +18,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
+
 # -------------- ONNXRuntime  ------------------#
 set(ONNXRUNTIME_VERSION 1.21.0)
 set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../hero_sam/onnxruntime-linux-x64-gpu-1.21.1")
@@ -26,21 +28,21 @@ include_directories(${ONNXRUNTIME_ROOT}/include)
 add_definitions(-DUSE_CUDA=1)
 include_directories(/usr/local/cuda/include)
 
-# find_package(catkin REQUIRED
-#   COMPONENTS
-#   onnxruntime_ros
-# )
+find_package(catkin REQUIRED
+  COMPONENTS
+  #onnxruntime_ros
+)
 
 # ------------------------------------------------------------------------------------------------
 #                                        CATKIN EXPORT
 # ------------------------------------------------------------------------------------------------
 
-# catkin_package(
-#   INCLUDE_DIRS include
-#   LIBRARIES ${PROJECT_NAME}
-#   CATKIN_DEPENDS
-#   DEPENDS OpenCV
-# )
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES ${PROJECT_NAME}
+  CATKIN_DEPENDS
+  DEPENDS OpenCV
+)
 
 # ------------------------------------------------------------------------------------------------
 #                                           BUILD
@@ -61,7 +63,7 @@ set(PROJECT_SOURCES
 )
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Link OpenCV libraries along with ONNX Runtime
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${catkin_LIBRARIES} ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so)

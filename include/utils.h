@@ -2,12 +2,6 @@
 
 #define    RET_OK nullptr
 
-#ifdef _WIN32
-#include <Windows.h>
-#include <direct.h>
-#include <io.h>
-#endif
-
 #include <string>
 #include <vector>
 #include <cstdio>

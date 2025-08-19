@@ -71,26 +71,12 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams) {
             sessionOption.AppendExecutionProvider_CUDA(cudaOption);
         }
 
-        //OrtTensorRTProviderOptions trtOptions{};
-        //trtOptions.device_id = 0;
-        //trtOptions.trt_fp16_enable = true;
-        //sessionOption.AppendExecutionProvider_TensorRT(trtOptions);
-
         sessionOption.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
         sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
         sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
 
-#ifdef _WIN32
-        int ModelPathSize = MultiByteToWideChar(CP_UTF8, 0, iParams.modelPath.c_str(), static_cast<int>(iParams.modelPath.length()), nullptr, 0);
-        wchar_t* wide_cstr = new wchar_t[ModelPathSize + 1];
-        MultiByteToWideChar(CP_UTF8, 0, iParams.modelPath.c_str(), static_cast<int>(iParams.modelPath.length()), wide_cstr, ModelPathSize);
-        wide_cstr[ModelPathSize] = L'\0';
-        const wchar_t* modelPath = wide_cstr;
-#else
         const char* modelPath = iParams.modelPath.c_str();
-#endif // _WIN32
 
-        //session = new Ort::Session(env, modelPath, sessionOption);
         session = std::make_unique<Ort::Session>(env, modelPath, sessionOption);
         Ort::AllocatorWithDefaultOptions allocator;
         size_t inputNodesNum = session->GetInputCount();
@@ -111,14 +97,6 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams) {
         }
         options = Ort::RunOptions{ nullptr };
 
-        //std::vector<long int> input_shape;
-        //std::vector<long int> output_shape;
-        //size_t input_tensor_size = 0;
-        //size_t output_tensor_size = 0;
-        //Get input and output tensor size
-
-        //auto input_tensor_size = session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementCount();
-        //auto output_tensor_size = session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementCount();
         auto input_shape = session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
         auto output_shape = session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
         auto output_type = session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementType();
@@ -159,13 +137,7 @@ const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oR
             }
             else if (modelType == SEG::SAM_SEGMENT_DECODER)
             {
-                // For SAM decoder model, the input size is different
-                // Assuming the input size is 236x64x64 for the decoder
-                // You can adjust this based on your actual model requirements
-                // For example, if the input size is 1x3x236x64, you can set it as follows:
-                // inputNodeDims = { 1, 3, 236, 64 };
-                // But here we are using 1x236x64x64 as per your original code
-
+                // Input size or SAM decoder model is 256x64x64 for the decoder
                 inputNodeDims = { 1, 256, 64, 64 };
             }
             TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities, result);
@@ -209,7 +181,6 @@ const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oR
             auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
             std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
             auto output = outputTensor.front().GetTensorMutableData<typename std::remove_pointer<N>::type>();
-            //std::vector<int64_t> outputNodeDims = outputTensor.front().GetTensorTypeAndShapeInfo().GetShape();
             delete[] blob;
 
             int embeddingSize = outputNodeDims[1] * outputNodeDims[2] * outputNodeDims[3]; // Flattened size
@@ -234,13 +205,11 @@ const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oR
             break;
         }
         case SEG::SAM_SEGMENT_DECODER:
-        //case <OTHER MODEL>:
         {
             // Use embeddings from the last result
             std::vector<float> embeddings = result.embeddings;
             // Create tensor for decoder
             std::vector<int64_t> decoderInputDims = { 1, 256, 64, 64 }; // Adjust based on your decoder's requirements
-
 
             // Create  point coordinates and labels
     #ifdef ROI
@@ -257,8 +226,6 @@ const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oR
                 std::cerr << "No valid bounding box selected." << std::endl;
                 return "[SAM]: NO valid Box.";
             }
-
-            //cv::Rect bbox1(138, 29, 170, 301);
 
             std::vector<cv::Rect> boundingBoxes;
             boundingBoxes.push_back(bbox);
@@ -344,10 +311,6 @@ const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oR
 
 
                 utilities.overlay(output_tensors, iImg, imgSize, result);
-                //std::cout << "Press any key to exit" << std::endl;
-                //cv::imshow("Result of INTERMEDIATE Detection", iImg);
-                //cv::waitKey(0);
-                //cv::destroyAllWindows();
             }
             // Add the result to oResult
             oResult.push_back(result);

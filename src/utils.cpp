@@ -172,7 +172,7 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg
                     }
                 }
 
-                // 1. Calculate the dimensions the image had during preprocessing
+            // 1. Calculate the dimensions the image had during preprocessing
             float scale;
             int processedWidth, processedHeight;
             if (iImg.cols >= iImg.rows) {
@@ -184,9 +184,6 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg
                 processedWidth = int(iImg.cols * scale);
                 processedHeight = imgSize[1];
             }
-            // 2. Resize mask to match the SAM input dimensions
-            //cv::Mat resizedMask;
-            //cv::resize(mask, resizedMask, cv::Size(256, 256));
 
             // 3. Extract the portion that corresponds to the actual image (no padding)
             int cropWidth = std::min(256, int(256 * processedWidth / (float)imgSize[0]));
@@ -207,7 +204,7 @@ void Utils::overlay(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg
             }
 
             // Apply the Guided Filter
-            // cv::Mat filteredMask;
+            cv::Mat filteredMask;
             int radius = 2;
             double eps = 0.01;
             cv::ximgproc::guidedFilter(iImg, finalMask, finalMask, radius, eps);
