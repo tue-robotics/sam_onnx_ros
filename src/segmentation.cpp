@@ -14,19 +14,17 @@ std::tuple<std::vector<std::unique_ptr<SAM>>, SEG::DL_INIT_PARAM, SEG::DL_INIT_P
     params_encoder.rectConfidenceThreshold = 0.1;
     params_encoder.iouThreshold = 0.5;
     params_encoder.modelPath = "SAM_encoder.onnx";
-    params_encoder.imgSize = { 1024, 1024 };
+    params_encoder.imgSize = {1024, 1024};
 
     params_decoder = params_encoder;
     params_decoder.modelType = SEG::SAM_SEGMENT_DECODER;
     params_decoder.modelPath = "SAM_mask_decoder.onnx";
 
-
-
-    #ifdef USE_CUDA
+#ifdef USE_CUDA
     params_encoder.cudaEnable = true;
-    #else
+#else
     params_encoder.cudaEnable = false;
-    #endif
+#endif
 
     samSegmentorEncoder->CreateSession(params_encoder);
     samSegmentorDecoder->CreateSession(params_decoder);
@@ -35,7 +33,8 @@ std::tuple<std::vector<std::unique_ptr<SAM>>, SEG::DL_INIT_PARAM, SEG::DL_INIT_P
     return {std::move(samSegmentors), params_encoder, params_decoder};
 }
 
-std::vector<cv::Mat> SegmentAnything(std::vector<std::unique_ptr<SAM>>& samSegmentors, SEG::DL_INIT_PARAM& params_encoder, SEG::DL_INIT_PARAM& params_decoder, cv::Mat& img) {
+std::vector<cv::Mat> SegmentAnything(std::vector<std::unique_ptr<SAM>> &samSegmentors, SEG::DL_INIT_PARAM &params_encoder, SEG::DL_INIT_PARAM &params_decoder, cv::Mat &img)
+{
 
     std::vector<SEG::DL_RESULT> resSam;
     SEG::DL_RESULT res;
@@ -43,15 +42,15 @@ std::vector<cv::Mat> SegmentAnything(std::vector<std::unique_ptr<SAM>>& samSegme
     SEG::MODEL_TYPE modelTypeRef = params_encoder.modelType;
     samSegmentors[0]->RunSession(img, resSam, modelTypeRef, res);
 
-
     modelTypeRef = params_decoder.modelType;
     samSegmentors[1]->RunSession(img, resSam, modelTypeRef, res);
 
-    //cv::destroyAllWindows();
+    // cv::destroyAllWindows();
     cv::Mat finalMask = res.masks[0];
     std::cout << "Final mask size: " << finalMask.size() << std::endl;
 
-    for (const auto& mask : res.masks) {
+    for (const auto &mask : res.masks)
+    {
         cv::imshow("Mask", mask);
         cv::waitKey(0);
     }
