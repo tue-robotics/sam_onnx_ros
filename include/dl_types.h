@@ -1,4 +1,11 @@
-#pragma once
+#ifndef DL_TYPES_H
+#define DL_TYPES_H
+
+#include <opencv4/opencv2/opencv.hpp>
+#include <opencv4/opencv2/core/types.hpp>
+#include <vector>
+#include <string>
+
 namespace SEG
 {
     enum MODEL_TYPE
@@ -29,7 +36,7 @@ namespace SEG
         // std::vector<cv::Rect> boxes; // For SAM encoder model, this will be filled with detected boxes
 
         // Overloaded output operator for _DL_INIT_PARAM to print its contents
-        friend std::ostream &operator<<(std::ostream &os, _DL_INIT_PARAM &param)
+        friend std::ostream &operator<<(std::ostream &os, const _DL_INIT_PARAM &param)
         {
             os << "modelPath: " << param.modelPath << "\n";
             os << "modelType: " << param.modelType << "\n";
@@ -51,9 +58,6 @@ namespace SEG
     typedef struct _DL_RESULT
     {
 
-        // Yolo Part
-        int classId;
-        float confidence;
         std::vector<cv::Rect> boxes; // For SAM encoder model, this will be filled with detected boxes
         std::vector<cv::Point2f> keyPoints;
 
@@ -64,3 +68,4 @@ namespace SEG
 
     } DL_RESULT;
 } // namespace SEG
+#endif // DL_TYPES_H

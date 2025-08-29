@@ -1,12 +1,12 @@
-#pragma once
+#ifndef SAMINFERENCE_H
+#define SAMINFERENCE_H
+
 
 #define RET_OK nullptr
-
+#include <memory>
 #include <string>
 #include <vector>
 #include <cstdio>
-#include <opencv2/opencv.hpp>
-#include "onnxruntime_cxx_api.h"
 #include "utils.h"
 #ifdef USE_CUDA
 #include <cuda_fp16.h>
@@ -27,7 +27,7 @@ public:
     char *WarmUpSession(SEG::MODEL_TYPE modelType);
 
     template <typename N>
-    char *TensorProcess(clock_t &starttime_1, const cv::Mat &iImg, N &blob, std::vector<int64_t> &inputNodeDims,
+    const char *TensorProcess(clock_t &starttime_1, const cv::Mat &iImg, N &blob, std::vector<int64_t> &inputNodeDims,
                         SEG::MODEL_TYPE modelType, std::vector<SEG::DL_RESULT> &oResult, Utils &utilities, SEG::DL_RESULT &result);
 
     std::vector<std::string> classes{};
@@ -45,3 +45,5 @@ private:
     float rectConfidenceThreshold;
     float iouThreshold;
 };
+
+#endif // SAMINFERENCE_H

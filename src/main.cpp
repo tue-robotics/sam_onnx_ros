@@ -1,5 +1,8 @@
 #include "segmentation.h"
-
+#include <iostream>
+#include <vector>
+#include <filesystem>
+#include <opencv2/opencv.hpp>
 int main()
 {
     // Running inference
@@ -24,6 +27,7 @@ int main()
                 cv::waitKey(0);
                 cv::destroyAllWindows();
             }
+            std::cout << "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo" << std::endl;
         }
     }
     return 0;

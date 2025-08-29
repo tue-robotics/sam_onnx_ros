@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
-set(PROJECT_NAME SAMOnnxRuntimeCPPInference)
-project(sam_onnx_ros)
+set(PROJECT_NAME sam_onnx_ros)
+
 project(${PROJECT_NAME} VERSION 0.0.1 LANGUAGES CXX)
 
 # -------------- CMake Policies ------------------#
@@ -13,7 +13,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 #set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # -------------- OpenCV  ------------------#
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})

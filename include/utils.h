@@ -1,11 +1,11 @@
-#pragma once
+#ifndef UTILS_H
+#define UTILS_H
 
 #define RET_OK nullptr
 
 #include <string>
 #include <vector>
 #include <cstdio>
-#include <opencv2/opencv.hpp>
 #include "onnxruntime_cxx_api.h"
 #include "dl_types.h"
 #ifdef USE_CUDA
@@ -53,3 +53,5 @@ private:
     float resizeScales;
     float resizeScalesBbox; // letterbox scale
 };
+
+#endif // UTILS_H
