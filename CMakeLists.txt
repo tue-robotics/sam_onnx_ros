@@ -1,8 +1,6 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.0.2)
 
-set(PROJECT_NAME sam_onnx_ros)
-
-project(${PROJECT_NAME} VERSION 0.0.1 LANGUAGES CXX)
+project(sam_onnx_ros)
 
 # -------------- CMake Policies ------------------#
 #add_compile_options(-Wall -Werror=all)
@@ -30,6 +28,11 @@ include_directories(/usr/local/cuda/include)
 
 find_package(catkin REQUIRED
   COMPONENTS
+  roscpp
+  tue_config
+  tue_filesystem
+  code_profiler
+
   #onnxruntime_ros
 )
 
@@ -62,12 +65,22 @@ set(PROJECT_SOURCES
         src/utils.cpp
 )
 
-add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+# Build core library (no main.cpp here)
+add_library(sam_onnx_ros_core
+        src/sam_inference.cpp
+        src/segmentation.cpp
+        src/utils.cpp
+)
+target_link_libraries(sam_onnx_ros_core
+    ${OpenCV_LIBS}
+    ${catkin_LIBRARIES}
+    ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so
+)
+target_include_directories(sam_onnx_ros_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# Link OpenCV libraries along with ONNX Runtime
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${catkin_LIBRARIES} ${ONNXRUNTIME_ROOT}/lib/libonnxruntime.so)
-
+# Main executable links the core lib
+add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} sam_onnx_ros_core)
 
 # Copy sam_<model>.onnx file to the same folder of the executable file
 configure_file(../hero_sam/sam_inference/model/SAM_mask_decoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_mask_decoder.onnx  COPYONLY)
@@ -77,6 +90,19 @@ configure_file(../hero_sam/sam_inference/model/SAM_encoder.onnx ${CMAKE_CURRENT_
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/images
 )
+
+# Enable testing and add a gtest
+if (CATKIN_ENABLE_TESTING)
+  find_package(catkin_lint_cmake REQUIRED)
+  catkin_add_catkin_lint_test("-W2 --ignore HEADER_OUTSIDE_PACKAGE_INCLUDE_PATH")
+
+  catkin_add_gtest(sam_onnx_ros_tests test/sam_test.cpp)
+  if(TARGET sam_onnx_ros_tests)
+    target_link_libraries(sam_onnx_ros_tests sam_onnx_ros_core ${catkin_LIBRARIES})
+    target_include_directories(sam_onnx_ros_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  endif()
+endif()
+
 
 #If you want to debug
 set(CMAKE_BUILD_TYPE Debug)
