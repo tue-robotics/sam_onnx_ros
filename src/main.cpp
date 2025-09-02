@@ -20,14 +20,7 @@ int main()
             cv::Mat img = cv::imread(img_path);
             std::vector<cv::Mat> masks;
             masks = SegmentAnything(samSegmentors, params_encoder, params_decoder, img);
-            for (int j = 0; j < masks.size(); j++)
-            {
-                std::cout << "Press any key to exit" << std::endl;
-                cv::imshow("Result of MASKS", masks[j]);
-                cv::waitKey(0);
-                cv::destroyAllWindows();
-            }
-            std::cout << "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo" << std::endl;
+
         }
     }
     return 0;

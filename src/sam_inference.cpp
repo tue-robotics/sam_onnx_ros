@@ -206,7 +206,7 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
     std::vector<int64_t> decoderInputDims = {
         1, 256, 64, 64}; // Adjust based on your decoder's requirements
 
-    // Create  point coordinates and labels
+    // Create point coordinates for testing purposes
 #ifdef ROI
 
     // Create a window for user interaction
@@ -224,8 +224,7 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
     std::vector<cv::Rect> boundingBoxes;
     boundingBoxes.push_back(bbox);
 #endif // ROI
-       // boundingBoxes.push_back(bbox1);
-       // Declare timing variables BEFORE the loop
+
 #ifdef benchmark
     clock_t starttime_2 = 0;
     clock_t starttime_3 = 0;
@@ -255,8 +254,7 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
 
       std::vector<float> pointCoordsScaled;
 
-      std::vector<int64_t> pointCoordsDims = {1, 2,
-                                              2}; // 2 points, each with (x, y)
+      std::vector<int64_t> pointCoordsDims = {1, 2, 2}; // 2 points, each with (x, y)
 
       // Labels for the points
       std::vector<float> pointLabels = {2.0f, 3.0f}; // Box prompt labels
@@ -287,7 +285,7 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
       starttime_3 = clock();
 #endif // benchmark
 
-      utilities.overlay(output_tensors, iImg, imgSize, result);
+      utilities.PostProcess(output_tensors, iImg, imgSize, result);
     }
     // Add the result to oResult
     oResult.push_back(result);
