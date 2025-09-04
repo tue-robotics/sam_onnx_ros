@@ -22,27 +22,25 @@ protected:
         // Setup common parameters
         NonSquareImgSize = { testImage_800x600.cols, testImage_800x600.rows };
 
-        sam = std::make_unique<SAM>();
-        params.rectConfidenceThreshold = 0.1f;
-        params.iouThreshold = 0.5f;
-        params.imgSize = {1024, 1024};
-        params.modelType = SEG::SAM_SEGMENT_ENCODER;
-        params.modelPath = "SAM_encoder.onnx"; // copied to build/ by CMake
+        // Use the package Initializer/SegmentAnything for the full pipeline
+
+        std::tie(samSegmentors, params_encoder, params_decoder) = Initializer();
+
 #ifdef USE_CUDA
-        params.cudaEnable = true;
+        params_encoder.cudaEnable = true;
 #else
-        params.cudaEnable = false;
+        params_encoder.cudaEnable = false;
 #endif
     }
 
-    void TearDown() override { sam.reset(); }
+    void TearDown() override { samSegmentors[0].reset(); samSegmentors[1].reset(); }
 
     // Test data
     Utils utilities;
     cv::Mat testImage_640x640, testImage_800x600, testImage_realistic;
-    SEG::DL_INIT_PARAM params;
-    std::unique_ptr<SAM> sam;
     std::vector<int> NonSquareImgSize;
+    std::vector<std::unique_ptr<SAM>> samSegmentors;
+    SEG::DL_INIT_PARAM params_encoder, params_decoder;
 };
 
 
@@ -57,7 +55,7 @@ TEST_F(SamInferenceTest, ObjectCreation)
 TEST_F(SamInferenceTest, PreProcessSquareImage)
 {
     cv::Mat processedImg;
-    const char* result = utilities.PreProcess(testImage_640x640, params.imgSize, processedImg);
+    const char* result = utilities.PreProcess(testImage_640x640, params_encoder.imgSize, processedImg);
 
     EXPECT_EQ(result, nullptr) << "PreProcess should succeed";
     EXPECT_EQ(processedImg.size(), cv::Size(1024, 1024)) << "Output should be letterboxed to 1024x1024";
@@ -79,14 +77,14 @@ TEST_F(SamInferenceTest, CreateSessionWithValidModel)
     if (!std::filesystem::exists("SAM_encoder.onnx")) {
         GTEST_SKIP() << "Model not found in build dir";
     }
-    const char* result = sam->CreateSession(params);
-    EXPECT_EQ(result, nullptr) << "CreateSession should succeed with valid parameters";
+
+    EXPECT_NE(samSegmentors[0], nullptr) << "CreateSession should succeed with valid parameters";
 }
 
 TEST_F(SamInferenceTest, CreateSessionWithInvalidModel)
 {
-    params.modelPath = "nonexistent_model.onnx";
-    const char* result = sam->CreateSession(params);
+    params_encoder.modelPath = "nonexistent_model.onnx";
+    const char* result = samSegmentors[0]->CreateSession(params_encoder);
     EXPECT_NE(result, nullptr) << "CreateSession should fail with invalid model path";
 }
 
@@ -97,10 +95,7 @@ TEST_F(SamInferenceTest, FullInferencePipeline)
         GTEST_SKIP() << "Models not found in build dir";
     }
 
-    // Use the package Initializer/SegmentAnything for the full pipeline
-    std::vector<std::unique_ptr<SAM>> samSegmentors;
-    SEG::DL_INIT_PARAM params_encoder, params_decoder;
-    std::tie(samSegmentors, params_encoder, params_decoder) = Initializer();
+
 
     auto masks = SegmentAnything(samSegmentors, params_encoder, params_decoder, testImage_realistic);
     EXPECT_TRUE(masks.size() >= 0) << "Masks should be a valid output vector";

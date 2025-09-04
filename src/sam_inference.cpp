@@ -85,7 +85,7 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
     for (size_t i = 0; i < OutputNodesNum; i++) {
       Ort::AllocatedStringPtr output_node_name =
           session->GetOutputNameAllocated(i, allocator);
-      char *temp_buf = new char[10];
+      char *temp_buf = new char[50];
       strcpy(temp_buf, output_node_name.get());
       outputNodeNames.push_back(temp_buf);
     }

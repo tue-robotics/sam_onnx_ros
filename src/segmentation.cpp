@@ -14,12 +14,12 @@ Initializer() {
 
   params_encoder.rectConfidenceThreshold = 0.1;
   params_encoder.iouThreshold = 0.5;
-  params_encoder.modelPath = "SAM_encoder.onnx";
+  params_encoder.modelPath = "/home/amigo//Documents/repos/sam_onnx_ros/build/SAM_encoder.onnx";
   params_encoder.imgSize = {1024, 1024};
 
   params_decoder = params_encoder;
   params_decoder.modelType = SEG::SAM_SEGMENT_DECODER;
-  params_decoder.modelPath = "SAM_mask_decoder.onnx";
+  params_decoder.modelPath = "/home/amigo/Documents/repos/sam_onnx_ros/build/SAM_mask_decoder.onnx";
 
 #ifdef USE_CUDA
   params_encoder.cudaEnable = true;

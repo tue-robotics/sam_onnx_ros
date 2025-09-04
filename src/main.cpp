@@ -11,7 +11,7 @@ int main()
     SEG::DL_INIT_PARAM params_decoder;
     std::tie(samSegmentors, params_encoder, params_decoder) = Initializer();
     std::filesystem::path current_path = std::filesystem::current_path();
-    std::filesystem::path imgs_path = current_path / "../../hero_sam/pipeline/build/images";
+    std::filesystem::path imgs_path =  "/home/amigo/Documents/repos/hero_sam/pipeline/build/images"; // current_path / <- you could use
     for (auto &i : std::filesystem::directory_iterator(imgs_path))
     {
         if (i.path().extension() == ".jpg" || i.path().extension() == ".png" || i.path().extension() == ".jpeg")
