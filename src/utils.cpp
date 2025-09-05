@@ -26,13 +26,13 @@ char *Utils::PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize, cv::Mat 
 
     if (iImg.cols >= iImg.rows)
     {
-        resizeScales = iImg.cols / (float)iImgSize.at(0);
-        cv::resize(oImg, oImg, cv::Size(iImgSize.at(0), int(iImg.rows / resizeScales)));
+        _resizeScales = iImg.cols / (float)iImgSize.at(0);
+        cv::resize(oImg, oImg, cv::Size(iImgSize.at(0), int(iImg.rows / _resizeScales)));
     }
     else
     {
-        resizeScales = iImg.rows / (float)iImgSize.at(1);
-        cv::resize(oImg, oImg, cv::Size(int(iImg.cols / resizeScales), iImgSize.at(1)));
+        _resizeScales = iImg.rows / (float)iImgSize.at(1);
+        cv::resize(oImg, oImg, cv::Size(int(iImg.cols / _resizeScales), iImgSize.at(1)));
     }
     //cv::Mat tempImg = cv::Mat::zeros(iImgSize.at(0), iImgSize.at(1), CV_8UC3);
     cv::Mat tempImg = cv::Mat::zeros(iImgSize.at(1), iImgSize.at(0), CV_8UC3);
@@ -52,12 +52,12 @@ void Utils::ScaleBboxPoints(const cv::Mat &iImg, std::vector<int> imgSize, std::
     if (iImg.cols >= iImg.rows)
     {
         scale = imgSize[0] / (float)iImg.cols;
-        resizeScalesBbox = iImg.cols / (float)imgSize[0];
+        _resizeScalesBbox = iImg.cols / (float)imgSize[0];
     }
     else
     {
         scale = imgSize[1] / (float)iImg.rows;
-        resizeScalesBbox = iImg.rows / (float)imgSize[1];
+        _resizeScalesBbox = iImg.rows / (float)imgSize[1];
     }
 
     // Top-Left placement (matching PreProcess)

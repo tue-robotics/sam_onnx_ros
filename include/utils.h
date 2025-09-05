@@ -51,8 +51,8 @@ public:
     }
 
 private:
-    float resizeScales;
-    float resizeScalesBbox; // letterbox scale
+    float _resizeScales;
+    float _resizeScalesBbox; // letterbox scale
 };
 
 #endif // UTILS_H

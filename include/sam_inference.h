@@ -33,17 +33,17 @@ public:
     std::vector<std::string> classes{};
 
 private:
-    Ort::Env env;
-    std::unique_ptr<Ort::Session> session;
-    bool cudaEnable;
-    Ort::RunOptions options;
-    std::vector<const char *> inputNodeNames;
-    std::vector<const char *> outputNodeNames;
+    Ort::Env _env;
+    std::unique_ptr<Ort::Session> _session;
+    bool _cudaEnable;
+    Ort::RunOptions _options;
+    std::vector<const char *> _inputNodeNames;
+    std::vector<const char *> _outputNodeNames;
 
-    SEG::MODEL_TYPE modelType;
-    std::vector<int> imgSize;
-    float rectConfidenceThreshold;
-    float iouThreshold;
+    SEG::MODEL_TYPE _modelType;
+    std::vector<int> _imgSize;
+    float _rectConfidenceThreshold;
+    float _iouThreshold;
 };
 
 #endif // SAMINFERENCE_H

@@ -9,10 +9,10 @@ SAM::SAM() {}
 
 SAM::~SAM() {
   // Clean up input/output node names
-  for (auto &name : inputNodeNames) {
+  for (auto &name : _inputNodeNames) {
     delete[] name;
   }
-  for (auto &name : outputNodeNames) {
+  for (auto &name : _outputNodeNames) {
     delete[] name;
   }
 }
@@ -28,19 +28,19 @@ template <> struct TypeToTensorType<half> {
 
 const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
   const char *Ret = RET_OK;
-  if (session) {
-    session.reset(); // Release previous session
+  if (_session) {
+    _session.reset(); // Release previous _session
 
     // Clear node names
-    for (auto &name : inputNodeNames) {
+    for (auto &name : _inputNodeNames) {
       delete[] name;
     }
-    inputNodeNames.clear();
+    _inputNodeNames.clear();
 
-    for (auto &name : outputNodeNames) {
+    for (auto &name : _outputNodeNames) {
       delete[] name;
     }
-    outputNodeNames.clear();
+    _outputNodeNames.clear();
   }
   std::regex pattern("[\u4e00-\u9fa5]");
   bool result = std::regex_search(iParams.modelPath, pattern);
@@ -51,55 +51,55 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
     return Ret;
   }
   try {
-    rectConfidenceThreshold = iParams.rectConfidenceThreshold;
-    iouThreshold = iParams.iouThreshold;
-    imgSize = iParams.imgSize;
-    modelType = iParams.modelType;
-    cudaEnable = iParams.cudaEnable;
-    env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "Sam");
-    Ort::SessionOptions sessionOption;
+    _rectConfidenceThreshold = iParams.rectConfidenceThreshold;
+    _iouThreshold = iParams.iouThreshold;
+    _imgSize = iParams.imgSize;
+    _modelType = iParams.modelType;
+    _cudaEnable = iParams.cudaEnable;
+    _env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "Sam");
+    Ort::SessionOptions _sessionOption;
     if (iParams.cudaEnable) {
       OrtCUDAProviderOptions cudaOption;
       cudaOption.device_id = 0;
-      sessionOption.AppendExecutionProvider_CUDA(cudaOption);
+      _sessionOption.AppendExecutionProvider_CUDA(cudaOption);
     }
 
-    sessionOption.SetGraphOptimizationLevel(
+    _sessionOption.SetGraphOptimizationLevel(
         GraphOptimizationLevel::ORT_ENABLE_ALL);
-    sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
-    sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
+    _sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
+    _sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
 
     const char *modelPath = iParams.modelPath.c_str();
 
-    session = std::make_unique<Ort::Session>(env, modelPath, sessionOption);
+    _session = std::make_unique<Ort::Session>(_env, modelPath, _sessionOption);
     Ort::AllocatorWithDefaultOptions allocator;
-    size_t inputNodesNum = session->GetInputCount();
+    size_t inputNodesNum = _session->GetInputCount();
     for (size_t i = 0; i < inputNodesNum; i++) {
       Ort::AllocatedStringPtr input_node_name =
-          session->GetInputNameAllocated(i, allocator);
+          _session->GetInputNameAllocated(i, allocator);
       char *temp_buf = new char[50];
       strcpy(temp_buf, input_node_name.get());
-      inputNodeNames.push_back(temp_buf);
+      _inputNodeNames.push_back(temp_buf);
     }
-    size_t OutputNodesNum = session->GetOutputCount();
+    size_t OutputNodesNum = _session->GetOutputCount();
     for (size_t i = 0; i < OutputNodesNum; i++) {
       Ort::AllocatedStringPtr output_node_name =
-          session->GetOutputNameAllocated(i, allocator);
+          _session->GetOutputNameAllocated(i, allocator);
       char *temp_buf = new char[50];
       strcpy(temp_buf, output_node_name.get());
-      outputNodeNames.push_back(temp_buf);
+      _outputNodeNames.push_back(temp_buf);
     }
-    options = Ort::RunOptions{nullptr};
+    _options = Ort::RunOptions{nullptr};
 
     auto input_shape =
-        session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
+        _session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
     auto output_shape =
-        session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
-    auto output_type = session->GetOutputTypeInfo(0)
+        _session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
+    auto output_type = _session->GetOutputTypeInfo(0)
                            .GetTensorTypeAndShapeInfo()
                            .GetElementType();
 
-    WarmUpSession(modelType);
+    WarmUpSession(_modelType);
     return RET_OK;
   } catch (const std::exception &e) {
     const char *str1 = "[SAM]:";
@@ -109,30 +109,30 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
     std::strcpy(merged, str_result.c_str());
     std::cout << merged << std::endl;
     delete[] merged;
-    return "[SAM]:Create session failed.";
+    return "[SAM]:Create _session failed.";
   }
 }
 
 const char *SAM::RunSession(const cv::Mat &iImg,
                             std::vector<SEG::DL_RESULT> &oResult,
-                            SEG::MODEL_TYPE modelType, SEG::DL_RESULT &result) {
+                            SEG::MODEL_TYPE _modelType, SEG::DL_RESULT &result) {
 #ifdef benchmark
   clock_t starttime_1 = clock();
 #endif // benchmark
   Utils utilities;
   const char *Ret = RET_OK;
   cv::Mat processedImg;
-  utilities.PreProcess(iImg, imgSize, processedImg);
+  utilities.PreProcess(iImg, _imgSize, processedImg);
   float *blob = new float[processedImg.total() * 3];
   utilities.BlobFromImage(processedImg, blob);
   std::vector<int64_t> inputNodeDims;
-  if (modelType == SEG::SAM_SEGMENT_ENCODER) {
-    inputNodeDims = {1, 3, imgSize.at(0), imgSize.at(1)};
-  } else if (modelType == SEG::SAM_SEGMENT_DECODER) {
+  if (_modelType == SEG::SAM_SEGMENT_ENCODER) {
+    inputNodeDims = {1, 3, _imgSize.at(0), _imgSize.at(1)};
+  } else if (_modelType == SEG::SAM_SEGMENT_DECODER) {
     // Input size or SAM decoder model is 256x64x64 for the decoder
     inputNodeDims = {1, 256, 64, 64};
   }
-  TensorProcess(starttime_1, iImg, blob, inputNodeDims, modelType, oResult,
+  TensorProcess(starttime_1, iImg, blob, inputNodeDims, _modelType, oResult,
                 utilities, result);
 
   return Ret;
@@ -141,11 +141,11 @@ const char *SAM::RunSession(const cv::Mat &iImg,
 template <typename N>
 const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
                                N &blob, std::vector<int64_t> &inputNodeDims,
-                               SEG::MODEL_TYPE modelType,
+                               SEG::MODEL_TYPE _modelType,
                                std::vector<SEG::DL_RESULT> &oResult,
                                Utils &utilities, SEG::DL_RESULT &result) {
 
-  switch (modelType) {
+  switch (_modelType) {
   case SEG::SAM_SEGMENT_ENCODER:
     // case OTHER_SAM_MODEL:
     {
@@ -153,14 +153,14 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
       Ort::Value inputTensor =
           Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
               Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-              blob, 3 * imgSize.at(0) * imgSize.at(1), inputNodeDims.data(),
+              blob, 3 * _imgSize.at(0) * _imgSize.at(1), inputNodeDims.data(),
               inputNodeDims.size());
 #ifdef benchmark
       clock_t starttime_2 = clock();
 #endif // benchmark
       auto outputTensor =
-          session->Run(options, inputNodeNames.data(), &inputTensor, 1,
-                       outputNodeNames.data(), outputNodeNames.size());
+          _session->Run(_options, _inputNodeNames.data(), &inputTensor, 1,
+                       _outputNodeNames.data(), _outputNodeNames.size());
 #ifdef benchmark
       clock_t starttime_3 = clock();
 #endif // benchmark
@@ -186,7 +186,7 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
           (double)(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
       double post_process_time =
           (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
-      if (cudaEnable) {
+      if (_cudaEnable) {
         std::cout << "[SAM(CUDA)]: " << pre_process_time << "ms pre-process, "
                   << process_time << "ms inference, " << post_process_time
                   << "ms post-process." << std::endl;
@@ -269,7 +269,7 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
       std::vector<float> hasMaskInput = {0.0f}; // No mask provided
       std::vector<int64_t> hasMaskInputDims = {1};
 
-      utilities.ScaleBboxPoints(iImg, imgSize, pointCoords, pointCoordsScaled);
+      utilities.ScaleBboxPoints(iImg, _imgSize, pointCoords, pointCoordsScaled);
 
       std::vector<Ort::Value> inputTensors = utilities.PrepareInputTensor(
           decoderInputTensor, pointCoordsScaled, pointCoordsDims, pointLabels,
@@ -279,15 +279,15 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
 #ifdef benchmark
       starttime_2 = clock();
 #endif // benchmark
-      auto output_tensors = session->Run(
-          options, inputNodeNames.data(), inputTensors.data(),
-          inputTensors.size(), outputNodeNames.data(), outputNodeNames.size());
+      auto output_tensors = _session->Run(
+          _options, _inputNodeNames.data(), inputTensors.data(),
+          inputTensors.size(), _outputNodeNames.data(), _outputNodeNames.size());
 
 #ifdef benchmark
       starttime_3 = clock();
 #endif // benchmark
 
-      utilities.PostProcess(output_tensors, iImg, imgSize, result);
+      utilities.PostProcess(output_tensors, iImg, _imgSize, result);
     }
     // Add the result to oResult
     oResult.push_back(result);
@@ -302,7 +302,7 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
         (double)(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
     double post_process_time =
         (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
-    if (cudaEnable) {
+    if (_cudaEnable) {
       std::cout << "[SAM(CUDA)]: " << pre_process_time << "ms pre-process, "
                 << process_time << "ms inference, " << post_process_time
                 << "ms post-process." << std::endl;
@@ -321,31 +321,31 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
   return RET_OK;
 }
 
-char *SAM::WarmUpSession(SEG::MODEL_TYPE modelType) {
+char *SAM::WarmUpSession(SEG::MODEL_TYPE _modelType) {
   clock_t starttime_1 = clock();
   Utils utilities;
-  cv::Mat iImg = cv::Mat(cv::Size(imgSize.at(0), imgSize.at(1)), CV_8UC3);
+  cv::Mat iImg = cv::Mat(cv::Size(_imgSize.at(0), _imgSize.at(1)), CV_8UC3);
   cv::Mat processedImg;
-  utilities.PreProcess(iImg, imgSize, processedImg);
+  utilities.PreProcess(iImg, _imgSize, processedImg);
 
   float *blob = new float[iImg.total() * 3];
   utilities.BlobFromImage(processedImg, blob);
-  std::vector<int64_t> SAM_input_node_dims = {1, 3, imgSize.at(0),
-                                              imgSize.at(1)};
-  switch (modelType) {
+  std::vector<int64_t> SAM_input_node_dims = {1, 3, _imgSize.at(0),
+                                              _imgSize.at(1)};
+  switch (_modelType) {
   case SEG::SAM_SEGMENT_ENCODER: {
     Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
         Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob,
-        3 * imgSize.at(0) * imgSize.at(1), SAM_input_node_dims.data(),
+        3 * _imgSize.at(0) * _imgSize.at(1), SAM_input_node_dims.data(),
         SAM_input_node_dims.size());
     auto output_tensors =
-        session->Run(options, inputNodeNames.data(), &input_tensor, 1,
-                     outputNodeNames.data(), outputNodeNames.size());
+        _session->Run(_options, _inputNodeNames.data(), &input_tensor, 1,
+                     _outputNodeNames.data(), _outputNodeNames.size());
     delete[] blob;
     clock_t starttime_4 = clock();
     double post_process_time =
         (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
-    if (cudaEnable) {
+    if (_cudaEnable) {
       std::cout << "[SAM(CUDA)]: " << "Cuda warm-up cost " << post_process_time
                 << " ms. " << std::endl;
     }
@@ -387,7 +387,7 @@ char *SAM::WarmUpSession(SEG::MODEL_TYPE modelType) {
 
       std::vector<float> pointCoordsScaled;
 
-      utilities.ScaleBboxPoints(iImg, imgSize, pointCoords, pointCoordsScaled);
+      utilities.ScaleBboxPoints(iImg, _imgSize, pointCoords, pointCoordsScaled);
 
       // Labels for the points
       std::vector<float> pointLabels = {1.0f}; // All points are foreground
@@ -403,17 +403,17 @@ char *SAM::WarmUpSession(SEG::MODEL_TYPE modelType) {
           pointLabelsDims, maskInput, maskInputDims, hasMaskInput,
           hasMaskInputDims);
 
-      auto output_tensors = session->Run(
-          options, inputNodeNames.data(), inputTensors.data(),
-          inputTensors.size(), outputNodeNames.data(), outputNodeNames.size());
+      auto output_tensors = _session->Run(
+          _options, _inputNodeNames.data(), inputTensors.data(),
+          inputTensors.size(), _outputNodeNames.data(), _outputNodeNames.size());
     }
 
-    outputNodeNames.size();
+    _outputNodeNames.size();
     delete[] blob;
     clock_t starttime_4 = clock();
     double post_process_time =
         (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
-    if (cudaEnable) {
+    if (_cudaEnable) {
       std::cout << "[SAM(CUDA)]: " << "Cuda warm-up cost " << post_process_time
                 << " ms. " << std::endl;
     }
