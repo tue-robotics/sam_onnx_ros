@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <opencv2/ximgproc/edge_filter.hpp> // for guided filter
+#define LOGGING
 
 // Constructor
 Utils::Utils()
@@ -33,7 +34,8 @@ char *Utils::PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize, cv::Mat 
         resizeScales = iImg.rows / (float)iImgSize.at(1);
         cv::resize(oImg, oImg, cv::Size(int(iImg.cols / resizeScales), iImgSize.at(1)));
     }
-    cv::Mat tempImg = cv::Mat::zeros(iImgSize.at(0), iImgSize.at(1), CV_8UC3);
+    //cv::Mat tempImg = cv::Mat::zeros(iImgSize.at(0), iImgSize.at(1), CV_8UC3);
+    cv::Mat tempImg = cv::Mat::zeros(iImgSize.at(1), iImgSize.at(0), CV_8UC3);
     oImg.copyTo(tempImg(cv::Rect(0, 0, oImg.cols, oImg.rows)));
     oImg = tempImg;
 
@@ -198,6 +200,7 @@ void Utils::PostProcess(std::vector<Ort::Value> &output_tensors, const cv::Mat &
         result.masks.push_back(finalMask);
 
         // Overlay for display on a copy (iImg is const)
+        #ifdef LOGGING
         cv::Mat overlay = iImg.clone();
         std::vector<std::vector<cv::Point>> contours;
         cv::findContours(finalMask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -210,6 +213,7 @@ void Utils::PostProcess(std::vector<Ort::Value> &output_tensors, const cv::Mat &
         cv::imshow("SAM Segmentation", overlay);
         cv::waitKey(0);
         cv::destroyAllWindows();
+        #endif // LOGGING
     }
     else
     {
