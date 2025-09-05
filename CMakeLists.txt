@@ -97,12 +97,22 @@ if (CATKIN_ENABLE_TESTING)
 #   find_package(catkin_lint_cmake REQUIRED)
 #   catkin_add_catkin_lint_test("-W2 --ignore HEADER_OUTSIDE_PACKAGE_INCLUDE_PATH")
 
-  catkin_add_gtest(sam_onnx_ros_tests test/sam_test.cpp)
-  if(TARGET sam_onnx_ros_tests)
-    target_link_libraries(sam_onnx_ros_tests sam_onnx_ros_core ${catkin_LIBRARIES})
-    target_include_directories(sam_onnx_ros_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+ # Utils unit tests (no models needed)
+  catkin_add_gtest(utils_tests test/test_utils.cpp)
+  if(TARGET utils_tests)
+    target_link_libraries(utils_tests sam_onnx_ros_core GTest::gtest_main ${catkin_LIBRARIES})
+    target_include_directories(utils_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  endif()
+
+  # SAM integration-ish tests (may need models)
+  catkin_add_gtest(sam_tests test/sam_test.cpp)
+  if(TARGET sam_tests)
+    target_link_libraries(sam_tests sam_onnx_ros_core GTest::gtest_main ${catkin_LIBRARIES})
+    target_include_directories(sam_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
   endif()
 endif()
+
+
 
 #If you want to debug
 # set(CMAKE_BUILD_TYPE Debug)

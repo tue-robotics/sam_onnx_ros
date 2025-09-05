@@ -1,41 +1,46 @@
-#include "segmentation.h"
-#include "sam_inference.h"
 #include <gtest/gtest.h>
 #include <opencv2/opencv.hpp>
-#include "dl_types.h"
-#include "utils.h"
 #include <filesystem>
+#include "segmentation.h"
+#include "sam_inference.h"
+#include "dl_types.h"
+
+// This file contains higher-level (integration-ish) tests.
+// They cover object/session creation and a full pipeline run using synthetic images.
+// These tests may require the .onnx model files to be present next to the binary or in a known dir.
 
 class SamInferenceTest : public ::testing::Test
 {
 protected:
     void SetUp() override
     {
-        // Create test images with different characteristics
+        // Create simple synthetic images:
+        // - a white 640x640 (square)
+        // - a gray 800x600 (non-square)
         testImage_640x640 = cv::Mat::ones(640, 640, CV_8UC3) * 255;
         testImage_800x600 = cv::Mat::ones(600, 800, CV_8UC3) * 128;
 
-        // Create a more realistic test image with some patterns
+        // A "random noise" image to simulate realistic content for end-to-end checks.
         testImage_realistic = cv::Mat(640, 640, CV_8UC3);
         cv::randu(testImage_realistic, cv::Scalar(0,0,0), cv::Scalar(255,255,255));
 
-        // Setup common parameters
+        // Cache non-square size for preprocessing helpers.
         NonSquareImgSize = { testImage_800x600.cols, testImage_800x600.rows };
 
-        // Use the package Initializer/SegmentAnything for the full pipeline
-
+        // Use package helpers to build default params and SAM objects.
         std::tie(samSegmentors, params_encoder, params_decoder) = Initializer();
 
 #ifdef USE_CUDA
-        params_encoder.cudaEnable = true;
+        params_encoder.cudaEnable = true;  // Enable CUDA if compiled with it
 #else
-        params_encoder.cudaEnable = false;
+        params_encoder.cudaEnable = false; // Otherwise run on CPU
 #endif
     }
 
+    // Clean up the SAM objects after each test.
     void TearDown() override { samSegmentors[0].reset(); samSegmentors[1].reset(); }
 
-    // Test data
+    // Test data and objects shared across tests.
     Utils utilities;
     cv::Mat testImage_640x640, testImage_800x600, testImage_realistic;
     std::vector<int> NonSquareImgSize;
@@ -43,8 +48,7 @@ protected:
     SEG::DL_INIT_PARAM params_encoder, params_decoder;
 };
 
-
-
+// Simple smoke test: we can construct a SAM object without throwing.
 TEST_F(SamInferenceTest, ObjectCreation)
 {
     EXPECT_NO_THROW({
@@ -52,26 +56,8 @@ TEST_F(SamInferenceTest, ObjectCreation)
     });
 }
 
-TEST_F(SamInferenceTest, PreProcessSquareImage)
-{
-    cv::Mat processedImg;
-    const char* result = utilities.PreProcess(testImage_640x640, params_encoder.imgSize, processedImg);
-
-    EXPECT_EQ(result, nullptr) << "PreProcess should succeed";
-    EXPECT_EQ(processedImg.size(), cv::Size(1024, 1024)) << "Output should be letterboxed to 1024x1024";
-    EXPECT_FALSE(processedImg.empty()) << "Processed image should not be empty";
-}
-
-TEST_F(SamInferenceTest, PreProcessRectangularImage)
-{
-    cv::Mat processedImg;
-    const char* result = utilities.PreProcess(testImage_800x600, NonSquareImgSize, processedImg);
-
-    EXPECT_EQ(result, nullptr) << "PreProcess should succeed";
-    EXPECT_EQ(processedImg.size(), cv::Size(800, 600)) << "Output should be letterboxed to 800x600";
-    EXPECT_FALSE(processedImg.empty()) << "Processed image should not be empty";
-}
-
+// Confirms that with a present encoder model we can initialize a session.
+// Skips if the model file is not available.
 TEST_F(SamInferenceTest, CreateSessionWithValidModel)
 {
     if (!std::filesystem::exists("SAM_encoder.onnx")) {
@@ -81,6 +67,7 @@ TEST_F(SamInferenceTest, CreateSessionWithValidModel)
     EXPECT_NE(samSegmentors[0], nullptr) << "CreateSession should succeed with valid parameters";
 }
 
+// Confirms that giving an invalid model path returns an error (no crash).
 TEST_F(SamInferenceTest, CreateSessionWithInvalidModel)
 {
     params_encoder.modelPath = "nonexistent_model.onnx";
@@ -88,6 +75,8 @@ TEST_F(SamInferenceTest, CreateSessionWithInvalidModel)
     EXPECT_NE(result, nullptr) << "CreateSession should fail with invalid model path";
 }
 
+// End-to-end check: with both encoder/decoder models present, the pipeline runs
+// and returns a mask vector. Skips if models are not available.
 TEST_F(SamInferenceTest, FullInferencePipeline)
 {
     if (!std::filesystem::exists("SAM_encoder.onnx") ||
@@ -95,15 +84,8 @@ TEST_F(SamInferenceTest, FullInferencePipeline)
         GTEST_SKIP() << "Models not found in build dir";
     }
 
-
-
     auto masks = SegmentAnything(samSegmentors, params_encoder, params_decoder, testImage_realistic);
-    EXPECT_TRUE(masks.size() >= 0) << "Masks should be a valid output vector";
-}
 
-// Run all tests
-int main(int argc, char **argv)
-{
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    // We only check that a vector is returned. (You can strengthen this to EXPECT_FALSE(masks.empty()).)
+    EXPECT_TRUE(masks.size() >= 0) << "Masks should be a valid output vector";
 }
