@@ -10,7 +10,9 @@ int main()
     std::vector<std::unique_ptr<SAM>> samSegmentors;
     SEG::DL_INIT_PARAM params_encoder;
     SEG::DL_INIT_PARAM params_decoder;
-    std::tie(samSegmentors, params_encoder, params_decoder) = Initializer();
+    std::vector<SEG::DL_RESULT> resSam;
+    SEG::DL_RESULT res;
+    std::tie(samSegmentors, params_encoder, params_decoder, res, resSam) = Initializer();
     std::filesystem::path current_path = std::filesystem::current_path();
     std::filesystem::path imgs_path =  "/home/amigo/Documents/repos/hero_sam/sam_inference/build/images"; // current_path / <- you could use
     for (auto &i : std::filesystem::directory_iterator(imgs_path))
@@ -19,8 +21,8 @@ int main()
         {
             std::string img_path = i.path().string();
             cv::Mat img = cv::imread(img_path);
-            std::vector<cv::Mat> masks;
-            masks = SegmentAnything(samSegmentors, params_encoder, params_decoder, img);
+
+            SegmentAnything(samSegmentors, params_encoder, params_decoder, img, resSam, res);
 
         }
     }

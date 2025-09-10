@@ -1,6 +1,6 @@
 #include "utils.h"
 #include <opencv2/ximgproc/edge_filter.hpp> // for guided filter
-#define LOGGING
+//#define LOGGING
 
 // Constructor
 Utils::Utils()

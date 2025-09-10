@@ -19,7 +19,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 # -------------- ONNXRuntime  ------------------#
 set(ONNXRUNTIME_VERSION 1.21.0)
-set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../hero_sam/onnxruntime-linux-x64-gpu-1.21.1")
+set(ONNXRUNTIME_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../hero_sam.bak/onnxruntime-linux-x64-gpu-1.21.1")
 include_directories(${ONNXRUNTIME_ROOT}/include)
 
 # -------------- Cuda ------------------#
@@ -84,8 +84,8 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} sam_onnx_ros_core)
 
 # Copy sam_<model>.onnx file to the same folder of the executable file
-configure_file(~/Documents/repos/hero_sam/sam_inference/model/SAM_mask_decoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_mask_decoder.onnx  COPYONLY)
-configure_file(~/Documents/repos/hero_sam/sam_inference/model/SAM_encoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_encoder.onnx COPYONLY)
+configure_file(~/Documents/repos/hero_sam.bak/sam_inference/model/SAM_mask_decoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_mask_decoder.onnx  COPYONLY)
+configure_file(~/Documents/repos/hero_sam.bak/sam_inference/model/SAM_encoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/SAM_encoder.onnx COPYONLY)
 
 # Create folder name images in the same folder of the executable file
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
