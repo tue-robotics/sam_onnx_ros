@@ -24,6 +24,8 @@ Initializer() {
 
 #ifdef USE_CUDA
   params_encoder.cudaEnable = true;
+  params_decoder.cudaEnable = true;
+
 #else
   params_encoder.cudaEnable = false;
 #endif
