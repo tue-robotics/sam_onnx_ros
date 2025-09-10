@@ -223,8 +223,7 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
 
     std::vector<cv::Rect> boundingBoxes;
     boundingBoxes.push_back(bbox);
-#else
-    result.boxes.push_back(cv::Rect(0, 0, iImg.cols, iImg.rows));
+
 #endif // ROI
 
 #ifdef benchmark
