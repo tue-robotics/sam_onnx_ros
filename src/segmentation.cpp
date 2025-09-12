@@ -15,7 +15,7 @@ Initializer() {
   std::vector<SEG::DL_RESULT> resSam;
   params_encoder.rectConfidenceThreshold = 0.1;
   params_encoder.iouThreshold = 0.5;
-  params_encoder.modelPath = "/home/amigo//Documents/repos/sam_onnx_ros/build/SAM_encoder.onnx";
+  params_encoder.modelPath = "/home/amigo/Documents/repos/sam_onnx_ros/build/SAM_encoder.onnx";
   params_encoder.imgSize = {1024, 1024};
 
   params_decoder = params_encoder;
