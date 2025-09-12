@@ -28,13 +28,14 @@ protected:
         NonSquareImgSize = { testImage_800x600.cols, testImage_800x600.rows };
 
         // Use package helpers to build default params and SAM objects.
-        std::tie(samSegmentors, params_encoder, params_decoder) = Initializer();
+        std::tie(samSegmentors, params_encoder, params_decoder, res, resSam) = Initializer();
 
 #ifdef USE_CUDA
         params_encoder.cudaEnable = true;  // Enable CUDA if compiled with it
 #else
         params_encoder.cudaEnable = false; // Otherwise run on CPU
 #endif
+
     }
 
     // Clean up the SAM objects after each test.
@@ -46,6 +47,8 @@ protected:
     std::vector<int> NonSquareImgSize;
     std::vector<std::unique_ptr<SAM>> samSegmentors;
     SEG::DL_INIT_PARAM params_encoder, params_decoder;
+    SEG::DL_RESULT res;
+    std::vector<SEG::DL_RESULT> resSam;
 };
 
 // Simple smoke test: we can construct a SAM object without throwing.
@@ -84,8 +87,8 @@ TEST_F(SamInferenceTest, FullInferencePipeline)
         GTEST_SKIP() << "Models not found in build dir";
     }
 
-    auto masks = SegmentAnything(samSegmentors, params_encoder, params_decoder, testImage_realistic);
+    SegmentAnything(samSegmentors, params_encoder, params_decoder, testImage_realistic, resSam, res);
 
     // We only check that a vector is returned. (You can strengthen this to EXPECT_FALSE(masks.empty()).)
-    EXPECT_TRUE(masks.size() >= 0) << "Masks should be a valid output vector";
+    EXPECT_TRUE(res.masks.size() >= 0) << "Masks should be a valid output vector";
 }

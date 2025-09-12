@@ -93,16 +93,7 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
 
     auto input_shape =
         _session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
-    // Optional shape check when model has fixed dims (not -1)
-    if (input_shape.size() >= 4 && input_shape[2] > 0 && input_shape[3] > 0) {
-      const int64_t expectH = _imgSize.at(1);
-      const int64_t expectW = _imgSize.at(0);
-      if (input_shape[2] != expectH || input_shape[3] != expectW) {
-        std::cerr << "[SAM]: Model input (H,W)=(" << input_shape[2] << "," << input_shape[3]
-                  << ") mismatches configured imgSize (W,H)=(" << _imgSize[0] << "," << _imgSize[1] << ")."
-                  << std::endl;
-      }
-    }
+
     auto output_shape =
         _session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
     auto output_type = _session->GetOutputTypeInfo(0)

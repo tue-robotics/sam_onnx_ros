@@ -66,6 +66,22 @@ TEST_F(UtilsTest, PreprocessTopLeftPaddingAndAspect) {
     }
 }
 
+// Explicitly ensure imgSize is interpreted as [W, H] in PreProcess for non-square targets.
+TEST_F(UtilsTest, PreprocessNonSquareWidthHeightOrder) {
+    // Input image: H=300, W=500
+    cv::Mat img(300, 500, CV_8UC3, cv::Scalar(5, 6, 7));
+
+    // Target canvas (W,H) with non-square dims
+    std::vector<int> target{640, 480};
+    cv::Mat out;
+
+    ASSERT_EQ(u.PreProcess(img, target, out), nullptr);
+    // cols = width, rows = height
+    EXPECT_EQ(out.cols, target[0]);
+    EXPECT_EQ(out.rows, target[1]);
+    EXPECT_EQ(out.size(), cv::Size(target[0], target[1]));
+}
+
 // Parameterized fixture: used with TEST_P to run the same test body
 // for many (input size, target size) pairs.
 class UtilsPreprocessParamTest
