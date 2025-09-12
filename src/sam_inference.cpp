@@ -93,6 +93,16 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
 
     auto input_shape =
         _session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
+    // Optional shape check when model has fixed dims (not -1)
+    if (input_shape.size() >= 4 && input_shape[2] > 0 && input_shape[3] > 0) {
+      const int64_t expectH = _imgSize.at(1);
+      const int64_t expectW = _imgSize.at(0);
+      if (input_shape[2] != expectH || input_shape[3] != expectW) {
+        std::cerr << "[SAM]: Model input (H,W)=(" << input_shape[2] << "," << input_shape[3]
+                  << ") mismatches configured imgSize (W,H)=(" << _imgSize[0] << "," << _imgSize[1] << ")."
+                  << std::endl;
+      }
+    }
     auto output_shape =
         _session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
     auto output_type = _session->GetOutputTypeInfo(0)
@@ -127,9 +137,9 @@ const char *SAM::RunSession(const cv::Mat &iImg,
   utilities.BlobFromImage(processedImg, blob);
   std::vector<int64_t> inputNodeDims;
   if (_modelType == SEG::SAM_SEGMENT_ENCODER) {
-    inputNodeDims = {1, 3, _imgSize.at(0), _imgSize.at(1)};
+    // NCHW: H = imgSize[1], W = imgSize[0]
+    inputNodeDims = {1, 3, _imgSize.at(1), _imgSize.at(0)};
   } else if (_modelType == SEG::SAM_SEGMENT_DECODER) {
-    // Input size or SAM decoder model is 256x64x64 for the decoder
     inputNodeDims = {1, 256, 64, 64};
   }
   TensorProcess(starttime_1, iImg, blob, inputNodeDims, _modelType, oResult,
@@ -329,8 +339,9 @@ char *SAM::WarmUpSession(SEG::MODEL_TYPE _modelType) {
 
   float *blob = new float[iImg.total() * 3];
   utilities.BlobFromImage(processedImg, blob);
-  std::vector<int64_t> SAM_input_node_dims = {1, 3, _imgSize.at(0),
-                                              _imgSize.at(1)};
+
+  // NCHW: H = imgSize[1], W = imgSize[0]
+  std::vector<int64_t> SAM_input_node_dims = {1, 3, _imgSize.at(1), _imgSize.at(0)};
   switch (_modelType) {
   case SEG::SAM_SEGMENT_ENCODER: {
     Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
