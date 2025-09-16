@@ -7,6 +7,7 @@
   <version>0.0.0</version>
   <description>Segment Anything Model (SAM) segmentation</description>
 
+  <author email="iasonth95@gmail.com">Iason Theodorou</author>
   <maintainer email="iasonth95@gmail.com">Iason Theodorou</maintainer>
 
   <license>BSD</license>
@@ -14,11 +15,13 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>libopencv-dev</build_depend>
-  <exec_depend>libopencv-dev</exec_depend>
   <build_depend>onnxruntime_ros</build_depend>
+
+  <exec_depend>libopencv-dev</exec_depend>
   <exec_depend>onnxruntime_ros</exec_depend>
 
   <test_depend>catkin_lint_cmake</test_depend>
+
   <doc_depend>doxygen</doc_depend>
 
   <export>

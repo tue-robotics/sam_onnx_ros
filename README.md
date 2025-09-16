@@ -19,8 +19,8 @@ A high-performance C++ implementation for SAM (segment anything model) using Ten
     Dynamic Shape Support: Efficient handling of variable input sizes using optimization profiles.
     CUDA Optimization: Leverage CUDA for preprocessing and efficient memory handling.
 
-## 📢 Performance 
- ### Infernce Time 
+## 📢 Performance
+ ### Infernce Time
 
 | Component                  | SpeedSAM |
 |----------------------------|-----------|
@@ -51,7 +51,7 @@ A high-performance C++ implementation for SAM (segment anything model) using Ten
     │   ├── main.cpp          # Main entry point
     │   └── speedSam.cpp      # Implementation of the SpeedSam class
     └── CMakeLists.txt        # CMake configuration
-    
+
 # 🚀 Installation
 ## Prerequisites
     git clone https://github.com/hamdiboukamcha/SPEED-SAM-C-TENSORRT.git
@@ -94,8 +94,3 @@ If you use this code in your research, please cite the repository as follows:
             publisher = {GitHub},
             howpublished = {\url{https://github.com/hamdiboukamcha/SPEED-SAM-C-TENSORRT//}},
         }
-
-    
-
-   
-
