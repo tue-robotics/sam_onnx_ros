@@ -188,11 +188,11 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
       double post_process_time =
           (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
       if (_cudaEnable) {
-        std::cout << "[SAM(CUDA)]: " << pre_process_time << "ms pre-process, "
+        std::cout << "[SAM_encoder(CUDA)]: " << pre_process_time << "ms pre-process, "
                   << process_time << "ms inference, " << post_process_time
                   << "ms post-process." << std::endl;
       } else {
-        std::cout << "[SAM(CPU)]: " << pre_process_time << "ms pre-process, "
+        std::cout << "[SAM_encoder(CPU)]: " << pre_process_time << "ms pre-process, "
                   << process_time << "ms inference, " << post_process_time
                   << "ms post-process." << std::endl;
       }
@@ -235,6 +235,7 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
 #ifdef ROI
     for (const auto &box : boundingBoxes)
 #else
+
     for (const auto &box : result.boxes)
 #endif // ROI
     {
@@ -303,11 +304,11 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
     double post_process_time =
         (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
     if (_cudaEnable) {
-      std::cout << "[SAM(CUDA)]: " << pre_process_time << "ms pre-process, "
+      std::cout << "[SAM_decoder(CUDA)]: " << pre_process_time << "ms pre-process, "
                 << process_time << "ms inference, " << post_process_time
                 << "ms post-process." << std::endl;
     } else {
-      std::cout << "[SAM(CPU)]: " << pre_process_time << "ms pre-process, "
+      std::cout << "[SAM_decoder(CPU)]: " << pre_process_time << "ms pre-process, "
                 << process_time << "ms inference, " << post_process_time
                 << "ms post-process." << std::endl;
     }
