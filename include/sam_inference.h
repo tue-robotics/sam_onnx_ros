@@ -43,7 +43,6 @@ private:
     SEG::MODEL_TYPE _modelType;
     std::vector<int> _imgSize;
     float _rectConfidenceThreshold;
-    float _iouThreshold;
 };
 
 #endif // SAMINFERENCE_H

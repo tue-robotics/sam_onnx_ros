@@ -51,8 +51,6 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
     return Ret;
   }
   try {
-    _rectConfidenceThreshold = iParams.rectConfidenceThreshold;
-    _iouThreshold = iParams.iouThreshold;
     _imgSize = iParams.imgSize;
     _modelType = iParams.modelType;
     _cudaEnable = iParams.cudaEnable;
@@ -116,7 +114,8 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
 
 const char *SAM::RunSession(const cv::Mat &iImg,
                             std::vector<SEG::DL_RESULT> &oResult,
-                            SEG::MODEL_TYPE _modelType, SEG::DL_RESULT &result) {
+                            SEG::MODEL_TYPE _modelType, SEG::DL_RESULT &result)
+{
 #ifdef benchmark
   clock_t starttime_1 = clock();
 #endif // benchmark
@@ -133,19 +132,19 @@ const char *SAM::RunSession(const cv::Mat &iImg,
   } else if (_modelType == SEG::SAM_SEGMENT_DECODER) {
     inputNodeDims = {1, 256, 64, 64};
   }
-  TensorProcess(starttime_1, iImg, blob, inputNodeDims, _modelType, oResult,
+  TensorProcess_(starttime_1, iImg, blob, inputNodeDims, _modelType, oResult,
                 utilities, result);
 
   return Ret;
 }
 
 template <typename N>
-const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
+const char *SAM::TensorProcess_(clock_t &starttime_1, const cv::Mat &iImg,
                                N &blob, std::vector<int64_t> &inputNodeDims,
                                SEG::MODEL_TYPE _modelType,
                                std::vector<SEG::DL_RESULT> &oResult,
-                               Utils &utilities, SEG::DL_RESULT &result) {
-
+                               Utils &utilities, SEG::DL_RESULT &result)
+{
   switch (_modelType) {
   case SEG::SAM_SEGMENT_ENCODER:
     // case OTHER_SAM_MODEL:
@@ -235,7 +234,6 @@ const char *SAM::TensorProcess(clock_t &starttime_1, const cv::Mat &iImg,
 #ifdef ROI
     for (const auto &box : boundingBoxes)
 #else
-
     for (const auto &box : result.boxes)
 #endif // ROI
     {
@@ -410,7 +408,6 @@ char *SAM::WarmUpSession(SEG::MODEL_TYPE _modelType) {
           inputTensors.size(), _outputNodeNames.data(), _outputNodeNames.size());
     }
 
-    _outputNodeNames.size();
     delete[] blob;
     clock_t starttime_4 = clock();
     double post_process_time =
