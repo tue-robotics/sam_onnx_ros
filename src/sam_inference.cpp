@@ -5,9 +5,12 @@
 #define benchmark
 //#define ROI
 
-SAM::SAM() {}
+SAM::SAM()
+{
+}
 
-SAM::~SAM() {
+SAM::~SAM()
+{
   // Clean up input/output node names
   for (auto &name : _inputNodeNames) {
     delete[] name;
@@ -98,7 +101,7 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
                            .GetTensorTypeAndShapeInfo()
                            .GetElementType();
 
-    WarmUpSession(_modelType);
+    WarmUpSession_(_modelType);
     return RET_OK;
   } catch (const std::exception &e) {
     const char *str1 = "[SAM]:";
@@ -320,7 +323,8 @@ const char *SAM::TensorProcess_(clock_t &starttime_1, const cv::Mat &iImg,
   return RET_OK;
 }
 
-char *SAM::WarmUpSession(SEG::MODEL_TYPE _modelType) {
+char *SAM::WarmUpSession_(SEG::MODEL_TYPE _modelType)
+{
   clock_t starttime_1 = clock();
   Utils utilities;
   cv::Mat iImg = cv::Mat(cv::Size(_imgSize.at(0), _imgSize.at(1)), CV_8UC3);

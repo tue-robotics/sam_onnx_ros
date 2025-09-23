@@ -24,15 +24,14 @@ public:
 
     const char *RunSession(const cv::Mat &iImg, std::vector<SEG::DL_RESULT> &oResult, SEG::MODEL_TYPE modelType, SEG::DL_RESULT &result);
 
-    char *WarmUpSession(SEG::MODEL_TYPE modelType);
+private:
+
+    char *WarmUpSession_(SEG::MODEL_TYPE modelType);
 
     template <typename N>
-    const char *TensorProcess(clock_t &starttime_1, const cv::Mat &iImg, N &blob, std::vector<int64_t> &inputNodeDims,
+    const char *TensorProcess_(clock_t &starttime_1, const cv::Mat &iImg, N &blob, std::vector<int64_t> &inputNodeDims,
                         SEG::MODEL_TYPE modelType, std::vector<SEG::DL_RESULT> &oResult, Utils &utilities, SEG::DL_RESULT &result);
 
-    std::vector<std::string> classes{};
-
-private:
     Ort::Env _env;
     std::unique_ptr<Ort::Session> _session;
     bool _cudaEnable;
