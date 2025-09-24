@@ -1,6 +1,8 @@
 #include "sam_inference.h"
 #include "utils.h"
+
 #include <regex>
+#include <console_bridge/console.h>
 
 #define benchmark
 //#define ROI
@@ -50,7 +52,7 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
   if (result) {
     Ret = "[SAM]:Your model path is error.Change your model path without "
           "chinese characters.";
-    std::cout << Ret << std::endl;
+    CONSOLE_BRIDGE_logWarn("%s", Ret);
     return Ret;
   }
   try {
@@ -109,7 +111,7 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
     std::string str_result = std::string(str1) + std::string(str2);
     char *merged = new char[str_result.length() + 1];
     std::strcpy(merged, str_result.c_str());
-    std::cout << merged << std::endl;
+    CONSOLE_BRIDGE_logWarn("%s", merged);
     delete[] merged;
     return "[SAM]:Create _session failed.";
   }
@@ -190,13 +192,17 @@ const char *SAM::TensorProcess_(clock_t &starttime_1, const cv::Mat &iImg,
       double post_process_time =
           (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
       if (_cudaEnable) {
-        std::cout << "[SAM_encoder(CUDA)]: " << pre_process_time << "ms pre-process, "
-                  << process_time << "ms inference, " << post_process_time
-                  << "ms post-process." << std::endl;
+        CONSOLE_BRIDGE_logInform("[SAM_encoder(CUDA)]: %.2fms pre-process, %.2fms inference, "
+                               "%.2fms post-process.",
+                               pre_process_time, process_time,
+                               post_process_time
+                                );
       } else {
-        std::cout << "[SAM_encoder(CPU)]: " << pre_process_time << "ms pre-process, "
-                  << process_time << "ms inference, " << post_process_time
-                  << "ms post-process." << std::endl;
+        CONSOLE_BRIDGE_logInform("[SAM_encoder(CPU)]: %.2fms pre-process, %.2fms inference, "
+                               "%.2fms post-process.",
+                               pre_process_time, process_time,
+                               post_process_time
+                                );
       }
 #endif // benchmark
 
@@ -305,20 +311,24 @@ const char *SAM::TensorProcess_(clock_t &starttime_1, const cv::Mat &iImg,
     double post_process_time =
         (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
     if (_cudaEnable) {
-      std::cout << "[SAM_decoder(CUDA)]: " << pre_process_time << "ms pre-process, "
-                << process_time << "ms inference, " << post_process_time
-                << "ms post-process." << std::endl;
+      CONSOLE_BRIDGE_logInform("[SAM_decoder(CUDA)]: %.2fms pre-process, %.2fms inference, "
+                             "%.2fms post-process.",
+                             pre_process_time, process_time,
+                             post_process_time
+                              );
     } else {
-      std::cout << "[SAM_decoder(CPU)]: " << pre_process_time << "ms pre-process, "
-                << process_time << "ms inference, " << post_process_time
-                << "ms post-process." << std::endl;
+      CONSOLE_BRIDGE_logInform("[SAM_decoder(CPU)]: %.2fms pre-process, %.2fms inference, "
+                             "%.2fms post-process.",
+                             pre_process_time, process_time,
+                             post_process_time
+                              );
     }
 #endif // benchmark
     break;
   }
 
   default:
-    std::cout << "[SAM]: " << "Not support model type." << std::endl;
+    CONSOLE_BRIDGE_logWarn("[SAM]: " "Not support model type.");
   }
   return RET_OK;
 }
@@ -350,8 +360,7 @@ char *SAM::WarmUpSession_(SEG::MODEL_TYPE _modelType)
     double post_process_time =
         (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
     if (_cudaEnable) {
-      std::cout << "[SAM(CUDA)]: " << "Cuda warm-up cost " << post_process_time
-                << " ms. " << std::endl;
+      CONSOLE_BRIDGE_logInform("[SAM(CUDA)]: Cuda warm-up cost %.2f ms.", post_process_time);
     }
     break;
   }
@@ -417,8 +426,7 @@ char *SAM::WarmUpSession_(SEG::MODEL_TYPE _modelType)
     double post_process_time =
         (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
     if (_cudaEnable) {
-      std::cout << "[SAM(CUDA)]: " << "Cuda warm-up cost " << post_process_time
-                << " ms. " << std::endl;
+      CONSOLE_BRIDGE_logInform("[SAM(CUDA)]: Cuda warm-up cost %.2f ms.", post_process_time);
     }
 
     break;
