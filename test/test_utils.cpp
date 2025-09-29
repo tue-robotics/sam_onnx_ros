@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <opencv2/opencv.hpp>
-#include "utils.h"
+
+#include "sam_onnx_ros/utils.hpp"
 
 // This file contains small, focused unit tests for Utils.
 // We verify image preprocessing (channel conversion, aspect-preserving resize, padding)

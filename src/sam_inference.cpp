@@ -1,8 +1,8 @@
-#include "sam_inference.h"
-#include "utils.h"
-
 #include <regex>
 #include <console_bridge/console.h>
+
+#include "sam_onnx_ros/sam_inference.hpp"
+#include "sam_onnx_ros/utils.hpp"
 
 #define benchmark
 //#define ROI
@@ -97,11 +97,11 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
     auto input_shape =
         _session->GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
 
-    auto output_shape =
-        _session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
-    auto output_type = _session->GetOutputTypeInfo(0)
-                           .GetTensorTypeAndShapeInfo()
-                           .GetElementType();
+    // auto output_shape =
+    //     _session->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
+    // auto output_type = _session->GetOutputTypeInfo(0)
+    //                        .GetTensorTypeAndShapeInfo()
+    //                        .GetElementType();
 
     WarmUpSession_(_modelType);
     return RET_OK;
@@ -251,9 +251,10 @@ const char *SAM::TensorProcess_(clock_t &starttime_1, const cv::Mat &iImg,
           embeddings.data(), // Use the embeddings from the encoder
           embeddings.size(), // Total number of elements
           decoderInputDims.data(), decoderInputDims.size());
+
       // Use center of bounding box as foreground point
-      float centerX = box.x + box.width / 2.0;
-      float centerY = box.y + box.height / 2.0;
+      // float centerX = box.x + box.width / 2.0;
+      // float centerY = box.y + box.height / 2.0;
 
       // Convert bounding box to points
       std::vector<float> pointCoords = {

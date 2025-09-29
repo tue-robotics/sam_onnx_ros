@@ -1,4 +1,4 @@
-#include "segmentation.h"
+#include "sam_onnx_ros/segmentation.hpp"
 
 std::tuple<std::vector<std::unique_ptr<SAM>>, SEG::DL_INIT_PARAM,
            SEG::DL_INIT_PARAM, SEG::DL_RESULT, std::vector<SEG::DL_RESULT>>

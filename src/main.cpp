@@ -1,8 +1,7 @@
-#include "segmentation.h"
-#include <iostream>
-#include <vector>
 #include <filesystem>
 #include <opencv2/opencv.hpp>
+
+#include "sam_onnx_ros/segmentation.hpp"
 
 int main()
 {

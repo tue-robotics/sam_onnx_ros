@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
-#include "segmentation.h"
-#include "sam_inference.h"
-#include "dl_types.h"
+
+#include "sam_onnx_ros/sam_inference.hpp"
+#include "sam_onnx_ros/dl_types.hpp"
+#include "sam_onnx_ros/segmentation.hpp"
 
 // This file contains higher-level (integration-ish) tests.
 // They cover object/session creation and a full pipeline run using synthetic images.

@@ -3,14 +3,14 @@
 
 #define RET_OK nullptr
 
-#include <string>
 #include <vector>
 #include <cstdio>
 #include "onnxruntime_cxx_api.h"
-#include "dl_types.h"
 #ifdef USE_CUDA
 #include <cuda_fp16.h>
 #endif
+
+#include "sam_onnx_ros/dl_types.hpp"
 
 class Utils
 {

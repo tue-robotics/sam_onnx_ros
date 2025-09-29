@@ -4,13 +4,13 @@
 
 #define RET_OK nullptr
 #include <memory>
-#include <string>
 #include <vector>
 #include <cstdio>
-#include "utils.h"
 #ifdef USE_CUDA
 #include <cuda_fp16.h>
 #endif
+
+#include "sam_onnx_ros/utils.hpp"
 
 class SAM
 {
