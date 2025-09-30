@@ -26,10 +26,10 @@ configure_file(~/Documents/repos/hero_sam.bak/sam_inference/model/SAM_encoder.on
 find_package(catkin REQUIRED
   COMPONENTS
   rosconsole
-  console_bridge
+
   #onnxruntime_ros
 )
-
+find_package(console_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # -------------- Cuda ------------------#
