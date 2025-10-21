@@ -1,7 +1,8 @@
-#ifndef YOLO_ONNX_SAM_CONFIG_HPP_
-#define YOLO_ONNX_SAM_CONFIG_HPP_
+#ifndef SAM_ONNX_ROS_CONFIG_HPP_
+#define SAM_ONNX_ROS_CONFIG_HPP_
 
-//Set which version of the Tree Interface to use
-#define YOLO_ONNX_SAM_CUDA_ENABLED @onnx_sam_ros_CUDA_ENABLED@
+#define SAM_ONNX_FALSE 0
+#define SAM_ONNX_TRUE 1
+#define SAM_ONNX_ROS_CUDA_ENABLED SAM_ONNX_@sam_onnx_ros_CUDA_ENABLED@
 
-#endif //#define YOLO_ONNX_SAM_CONFIG_HPP_
+#endif //#define SAM_ONNX_ROS_CONFIG_HPP_

@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/include/**",
+                "${workspaceFolder}/../hero_sam/onnxruntime-linux-x64-gpu-1.21.1/include",
+                "/usr/local/cuda/include",
+                "/usr/include/opencv4/**",
+                "/opt/ros/noetic/include/**"
+            ],
+            "defines": [
+
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}

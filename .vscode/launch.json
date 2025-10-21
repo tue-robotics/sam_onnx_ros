@@ -1,0 +1,94 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug SAM Model",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/devel/lib/sam_onnx_ros/test_sam_onnx_ros", // Path to the executable
+            "args": [], // Add any command-line arguments for your program here
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build", // Set the working directory
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build-sam-project" // Ensure the project is built before debugging
+        },
+        {
+            "name": "Debug GTest (pick binary)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${input:testBinary}", // pick utils_tests or sam_tests
+            "args": [
+                //"--gtest_filter=${input:gtestFilter}"          // uncomment to filter tests
+            ],
+            "cwd": "${workspaceFolder}", // cwd doesn’t matter if SAM_MODELS_DIR is set
+            "environment": [
+                {
+                    "name": "SAM_MODELS_DIR",
+                    "value": "${env:SAM_MODELS_DIR}"
+                } // or hardcode a path here
+            ],
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Run all tests (ctest)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/ctest",
+            "args": [
+                "--test-dir",
+                "/home/amigo/ros/noetic/system/build/sam_onnx_ros",
+                "-R",
+                "(sam_tests|utils_tests)",
+                "--output-on-failure",
+                "-j",
+                "4"
+            ],
+            "cwd": "/home/amigo/ros/noetic/system/build/sam_onnx_ros",
+            "environment": [
+                {
+                    "name": "SAM_MODELS_DIR",
+                    "value": "${env:SAM_MODELS_DIR}"
+                }
+            ],
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "MIMode": "gdb"
+            // Note: ctest launching isn't great for step-debugging individual tests.
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testBinary",
+            "type": "pickString",
+            "description": "Select gtest executable",
+            "options": [
+                "/home/amigo/ros/noetic/system/devel/.private/sam_onnx_ros/lib/sam_onnx_ros/utils_tests",
+                "/home/amigo/ros/noetic/system/devel/.private/sam_onnx_ros/lib/sam_onnx_ros/sam_tests"
+            ]
+        },
+        {
+            "id": "gtestFilter",
+            "type": "promptString",
+            "description": "gtest filter (e.g. Utils* or SamInferenceTest.PreProcess*)",
+            "default": "*"
+        }
+    ],
+}
