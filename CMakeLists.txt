@@ -94,7 +94,7 @@ target_include_directories(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME}
-  ${OpenCV_LIBS}
+  ${OpenCV_LIBRARIES}
   ${catkin_LIBRARIES}
   ${${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES}
 )
