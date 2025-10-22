@@ -157,6 +157,7 @@ if (CATKIN_ENABLE_TESTING)
     target_link_libraries(
       sam_tests
       ${PROJECT_NAME}_lib
+      ${OpenCV_LIBRARIES}
       ${catkin_LIBRARIES}
       GTest::gtest
       GTest::gtest_main
