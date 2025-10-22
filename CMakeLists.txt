@@ -87,7 +87,7 @@ target_include_directories(${PROJECT_NAME}
   PUBLIC
     include
     ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-    SYSTEM
+  SYSTEM
     ${${PROJECT_NAME}_CUDA_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${catkin_INCLUDE_DIRS}
@@ -143,7 +143,7 @@ if (CATKIN_ENABLE_TESTING)
   if(TARGET utils_tests)
     target_link_libraries(
       utils_tests
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}
       ${catkin_LIBRARIES}
       GTest::gtest
       GTest::gtest_main
@@ -156,7 +156,7 @@ if (CATKIN_ENABLE_TESTING)
   if(TARGET sam_tests)
     target_link_libraries(
       sam_tests
-      ${PROJECT_NAME}_lib
+      ${PROJECT_NAME}
       ${OpenCV_LIBRARIES}
       ${catkin_LIBRARIES}
       GTest::gtest
