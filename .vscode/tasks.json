@@ -52,7 +52,9 @@
             "args": [
                 "-DCMAKE_BUILD_TYPE=Debug",
                 "-S", "${workspaceFolder}/yolo_inference",
-                "-B", "${workspaceFolder}/yolo_inference/build"
+                "-B", "${workspaceFolder}/yolo_inference/build",
+                                "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
+
             ],
             "problemMatcher": ["$gcc"]
         },
@@ -74,6 +76,7 @@
             "args": [
                 "--build",
                 "${workspaceFolder}/pipeline/build",
+                "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
                 "--config", "Debug"
             ],
             "problemMatcher": ["$gcc"]

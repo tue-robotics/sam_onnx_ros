@@ -5,7 +5,7 @@
 #include "sam_onnx_ros/utils.hpp"
 
 #define benchmark
-//#define ROI
+// #define ROI
 
 SAM::SAM()
 {
@@ -117,30 +117,29 @@ const char *SAM::CreateSession(SEG::DL_INIT_PARAM &iParams) {
   }
 }
 
-const char *SAM::RunSession(const cv::Mat &iImg,
-                            std::vector<SEG::DL_RESULT> &oResult,
-                            SEG::MODEL_TYPE _modelType, SEG::DL_RESULT &result)
-{
-#ifdef benchmark
-  clock_t starttime_1 = clock();
-#endif // benchmark
-  Utils utilities;
-  const char *Ret = RET_OK;
-  cv::Mat processedImg;
-  utilities.PreProcess(iImg, _imgSize, processedImg);
-  float *blob = new float[processedImg.total() * 3];
-  utilities.BlobFromImage(processedImg, blob);
-  std::vector<int64_t> inputNodeDims;
-  if (_modelType == SEG::SAM_SEGMENT_ENCODER) {
-    // NCHW: H = imgSize[1], W = imgSize[0]
-    inputNodeDims = {1, 3, _imgSize.at(1), _imgSize.at(0)};
-  } else if (_modelType == SEG::SAM_SEGMENT_DECODER) {
-    inputNodeDims = {1, 256, 64, 64};
-  }
-  TensorProcess_(starttime_1, iImg, blob, inputNodeDims, _modelType, oResult,
-                utilities, result);
+const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType, SEG::DL_RESULT& result) {
+    #ifdef benchmark
+        clock_t starttime_1 = clock();
+    #endif
+    Utils utilities;
+    const char* Ret = RET_OK;
+    cv::Mat processedImg;
+    utilities.PreProcess(iImg, _imgSize, processedImg);
 
-  return Ret;
+    if (modelType < 4) {
+        float* blob = new float[processedImg.total() * 3];
+        utilities.BlobFromImage(processedImg, blob);
+        std::vector<int64_t> inputNodeDims;
+        if (modelType == SEG::SAM_SEGMENT_ENCODER) {
+            // NCHW with H=imgSize[1], W=imgSize[0]  // FIX
+            inputNodeDims = { 1, 3, _imgSize.at(1), _imgSize.at(0) }; // FIX
+        } else if (modelType == SEG::SAM_SEGMENT_DECODER) {
+            inputNodeDims = { 1, 256, 64, 64 };
+        }
+        TensorProcess_(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities, result);
+    }
+    // ...existing code...
+    return Ret;
 }
 
 template <typename N>
@@ -341,21 +340,19 @@ char *SAM::WarmUpSession_(SEG::MODEL_TYPE _modelType)
   cv::Mat iImg = cv::Mat(cv::Size(_imgSize.at(0), _imgSize.at(1)), CV_8UC3);
   cv::Mat processedImg;
   utilities.PreProcess(iImg, _imgSize, processedImg);
-
-  float *blob = new float[iImg.total() * 3];
-  utilities.BlobFromImage(processedImg, blob);
-
-  // NCHW: H = imgSize[1], W = imgSize[0]
-  std::vector<int64_t> SAM_input_node_dims = {1, 3, _imgSize.at(1), _imgSize.at(0)};
-  switch (_modelType) {
-  case SEG::SAM_SEGMENT_ENCODER: {
-    Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob,
-        3 * _imgSize.at(0) * _imgSize.at(1), SAM_input_node_dims.data(),
-        SAM_input_node_dims.size());
-    auto output_tensors =
-        _session->Run(_options, _inputNodeNames.data(), &input_tensor, 1,
-                     _outputNodeNames.data(), _outputNodeNames.size());
+  if (_modelType < 4) {
+      float* blob = new float[iImg.total() * 3];
+      utilities.BlobFromImage(processedImg, blob);
+      // NCHW: H=imgSize[1], W=imgSize[0]  // FIX
+      std::vector<int64_t> SAM_input_node_dims = { 1, 3, _imgSize.at(1), _imgSize.at(0) }; // FIX
+      switch (_modelType) {
+      case SEG::SAM_SEGMENT_ENCODER: {
+          Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
+              Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+              blob, 3 * _imgSize.at(0) * _imgSize.at(1),
+              SAM_input_node_dims.data(), SAM_input_node_dims.size());
+          auto output_tensors = _session->Run(_options, _inputNodeNames.data(), &input_tensor, 1,
+                                                _outputNodeNames.data(), _outputNodeNames.size());
     delete[] blob;
     clock_t starttime_4 = clock();
     double post_process_time =
@@ -433,6 +430,6 @@ char *SAM::WarmUpSession_(SEG::MODEL_TYPE _modelType)
     break;
   }
   }
-
+  }
   return RET_OK;
 }

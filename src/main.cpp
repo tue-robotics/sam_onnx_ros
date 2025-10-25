@@ -13,7 +13,7 @@ int main()
     SEG::DL_RESULT res;
     std::tie(samSegmentors, params_encoder, params_decoder, res, resSam) = Initializer();
     std::filesystem::path current_path = std::filesystem::current_path();
-    std::filesystem::path imgs_path =  "/home/amigo/Documents/repos/hero_sam.bak/sam_inference/build/images"; // current_path / <- you could use
+    std::filesystem::path imgs_path =  "/home/amigo/Documents/repos/yolo_onnx_ros/build/images"; // current_path / <- you could use
     for (auto &i : std::filesystem::directory_iterator(imgs_path))
     {
         if (i.path().extension() == ".jpg" || i.path().extension() == ".png" || i.path().extension() == ".jpeg")
