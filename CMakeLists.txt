@@ -76,14 +76,7 @@ catkin_package(
 #                                           BUILD
 # ------------------------------------------------------------------------------------------------
 
-# Build library
-add_library(${PROJECT_NAME}
-  src/sam_inference.cpp
-  src/segmentation.cpp
-  src/utils.cpp
-)
-
-target_include_directories(${PROJECT_NAME}
+include_directories(
   PUBLIC
     include
     ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
@@ -91,6 +84,12 @@ target_include_directories(${PROJECT_NAME}
     ${${PROJECT_NAME}_CUDA_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${catkin_INCLUDE_DIRS}
+)
+
+add_library(${PROJECT_NAME}
+  src/sam_inference.cpp
+  src/segmentation.cpp
+  src/utils.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -103,7 +102,6 @@ target_link_libraries(${PROJECT_NAME}
 add_executable(test_${PROJECT_NAME}
   src/main.cpp
 )
-
 target_link_libraries(test_${PROJECT_NAME}
   ${PROJECT_NAME}
 )
@@ -112,9 +110,14 @@ target_link_libraries(test_${PROJECT_NAME}
 #                                           Install Targets
 # ------------------------------------------------------------------------------------------------
 
+install(FILES
+  ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_INCLUDE_DESTINATION}/config.hpp
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
 install(
-  DIRECTORY include/
-  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+  DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
 install(
