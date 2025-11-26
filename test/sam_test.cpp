@@ -30,7 +30,7 @@ protected:
         NonSquareImgSize = { testImage_800x600.cols, testImage_800x600.rows };
 
         // Use package helpers to build default params and SAM objects.
-        std::tie(samSegmentors, params_encoder, params_decoder, res, resSam) = Initialize("./sam_encoder/SAM_encoder.onnx", "./sam_decoder/SAM_mask_decoder.onnx");
+        std::tie(samSegmentors, params_encoder, params_decoder, res, resSam) = Initialize("./SAM_encoder.onnx", "./SAM_mask_decoder.onnx");
 
     }
 
@@ -59,7 +59,7 @@ TEST_F(SamInferenceTest, ObjectCreation)
 // Skips if the model file is not available.
 TEST_F(SamInferenceTest, CreateSessionWithValidModel)
 {
-    if (!std::filesystem::exists("./sam_encoder/SAM_encoder.onnx"))
+    if (!std::filesystem::exists("./SAM_encoder.onnx"))
     {
         GTEST_SKIP() << "Model not found in build dir";
     }
@@ -79,7 +79,7 @@ TEST_F(SamInferenceTest, CreateSessionWithInvalidModel)
 // and returns a mask vector. Skips if models are not available.
 TEST_F(SamInferenceTest, FullInferencePipeline)
 {
-    if (!std::filesystem::exists("./sam_encoder/SAM_encoder.onnx") || !std::filesystem::exists("./sam_decoder/SAM_mask_decoder.onnx"))
+    if (!std::filesystem::exists("./SAM_encoder.onnx") || !std::filesystem::exists("./SAM_mask_decoder.onnx"))
     {
         GTEST_SKIP() << "Models not found in build dir";
     }

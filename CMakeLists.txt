@@ -74,6 +74,17 @@ add_executable(test_${PROJECT_NAME}
 )
 target_link_libraries(test_${PROJECT_NAME} ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
 
+file(
+  DOWNLOAD https://github.com/tue-robotics/${PROJECT_NAME}/releases/download/speed_SAM/SAM_encoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM/SAM_encoder.onnx
+  EXPECTED_HASH "SHA256=d266fcdc9e4f0182b59946cd3cf1be331641f1d0d1de2415c4fd94e7a1c9cf0a"
+  SHOW_PROGRESS
+)
+file(
+  DOWNLOAD https://github.com/tue-robotics/${PROJECT_NAME}/releases/download/speed_SAM/SAM_mask_decoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM/SAM_mask_decoder.onnx
+  EXPECTED_HASH "SHA256=73b7c7bbe1ac78ada6f9534dfec5d4c31791fe8e57d552fa878c993020fae528"
+  SHOW_PROGRESS
+)
+
 # ------------------------------------------------------------------------------------------------
 #                                               INSTALL
 # ------------------------------------------------------------------------------------------------
@@ -102,6 +113,11 @@ install(
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+install(
+  DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/resources
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/resources
+)
+
 # ------------------------------------------------------------------------------------------------
 #                                           Testing
 # ------------------------------------------------------------------------------------------------
@@ -120,7 +136,7 @@ if (CATKIN_ENABLE_TESTING)
   endif()
 
   # SAM integration-ish tests (may need models)
-  catkin_add_gtest(sam_tests test/sam_test.cpp)
+  catkin_add_gtest(sam_tests test/sam_test.cpp WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM")
   if(TARGET sam_tests)
     target_link_libraries(
       sam_tests
