@@ -14,21 +14,25 @@ Utils::~Utils()
 
 char* Utils::PreProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
 {
-    if (iImg.channels() == 3) {
+    if (iImg.channels() == 3)
+    {
         oImg = iImg.clone();
         cv::cvtColor(oImg, oImg, cv::COLOR_BGR2RGB);
-    } else {
+    }
+    else
+    {
         cv::cvtColor(iImg, oImg, cv::COLOR_GRAY2RGB);
     }
 
-    if (iImg.cols >= iImg.rows) {
+    if (iImg.cols >= iImg.rows)
+    {
         // Width-dominant: scale by target width (iImgSize[0])
-        _resizeScales = iImg.cols / static_cast<float>(iImgSize.at(0));
-        cv::resize(oImg, oImg, cv::Size(iImgSize.at(0), static_cast<int>(iImg.rows / _resizeScales))); // fixed
+        resizeScales_ = iImg.cols / static_cast<float>(iImgSize.at(0));
+        cv::resize(oImg, oImg, cv::Size(iImgSize.at(0), static_cast<int>(iImg.rows / resizeScales_))); // fixed
     } else {
         // Height-dominant: scale by target height (iImgSize[1])
-        _resizeScales = iImg.rows / static_cast<float>(iImgSize.at(1));
-        cv::resize(oImg, oImg, cv::Size(static_cast<int>(iImg.cols / _resizeScales), iImgSize.at(1))); // fixed
+        resizeScales_ = iImg.rows / static_cast<float>(iImgSize.at(1));
+        cv::resize(oImg, oImg, cv::Size(static_cast<int>(iImg.cols / resizeScales_), iImgSize.at(1))); // fixed
     }
 
     // Letterbox top-left into a canvas of size (H=iImgSize[1], W=iImgSize[0])
@@ -39,7 +43,7 @@ char* Utils::PreProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat&
     return RET_OK;
 }
 
-void Utils::ScaleBboxPoints(const cv::Mat &iImg, std::vector<int> imgSize, std::vector<float> &pointCoords, std::vector<float> &pointCoordsScaled)
+void Utils::ScaleBboxPoints(const cv::Mat& iImg, std::vector<int> imgSize, std::vector<float>& pointCoords, std::vector<float>& pointCoordsScaled)
 {
 
     pointCoordsScaled.clear();
@@ -49,12 +53,12 @@ void Utils::ScaleBboxPoints(const cv::Mat &iImg, std::vector<int> imgSize, std::
     if (iImg.cols >= iImg.rows)
     {
         scale = imgSize[0] / (float)iImg.cols;
-        _resizeScalesBbox = iImg.cols / (float)imgSize[0];
+        resizeScalesBbox_ = iImg.cols / (float)imgSize[0];
     }
     else
     {
         scale = imgSize[1] / (float)iImg.rows;
-        _resizeScalesBbox = iImg.rows / (float)imgSize[1];
+        resizeScalesBbox_ = iImg.rows / (float)imgSize[1];
     }
 
     // Top-Left placement (matching PreProcess)
@@ -75,8 +79,8 @@ void Utils::ScaleBboxPoints(const cv::Mat &iImg, std::vector<int> imgSize, std::
     }
 }
 
-std::vector<Ort::Value> Utils::PrepareInputTensor(Ort::Value &decoderInputTensor, std::vector<float> &pointCoordsScaled, std::vector<int64_t> pointCoordsDims, std::vector<float> &pointLabels,
-                                                  std::vector<int64_t> pointLabelsDims, std::vector<float> &maskInput, std::vector<int64_t> maskInputDims, std::vector<float> &hasMaskInput, std::vector<int64_t> hasMaskInputDims)
+std::vector<Ort::Value> Utils::PrepareInputTensor(Ort::Value& decoderInputTensor, std::vector<float>& pointCoordsScaled, std::vector<int64_t> pointCoordsDims, std::vector<float>& pointLabels,
+                                                  std::vector<int64_t> pointLabelsDims, std::vector<float>& maskInput, std::vector<int64_t> maskInputDims, std::vector<float>& hasMaskInput, std::vector<int64_t> hasMaskInputDims)
 {
 
     Ort::Value pointCoordsTensor = Ort::Value::CreateTensor<float>(
@@ -117,29 +121,34 @@ std::vector<Ort::Value> Utils::PrepareInputTensor(Ort::Value &decoderInputTensor
 
     return inputTensors;
 }
-void Utils::PostProcess(std::vector<Ort::Value> &output_tensors, const cv::Mat &iImg, std::vector<int> imgSize, SEG::DL_RESULT &result)
+void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg, std::vector<int> imgSize, SEG::DL_RESULT& result)
 {
-    if (output_tensors.empty()) {
+    if (output_tensors.empty())
+    {
         std::cerr << "[SAM]: Decoder returned no outputs." << std::endl;
         return;
     }
 
     // Detect masks (4D) and scores (1D/2D) by shape
     int masksIdx = -1, scoresIdx = -1;
-    for (int i = 0; i < static_cast<int>(output_tensors.size()); ++i) {
-        const auto &val = output_tensors[i];
+    for (int i = 0; i < static_cast<int>(output_tensors.size()); ++i)
+    {
+        const auto& val = output_tensors[i];
         auto shape = val.GetTensorTypeAndShapeInfo().GetShape();
         if (shape.size() == 4) masksIdx = i;
         else if (shape.size() <= 2) scoresIdx = i;
     }
-    if (masksIdx < 0) {
+
+    if (masksIdx < 0)
+    {
         std::cerr << "[SAM]: No 4D mask tensor found in decoder outputs." << std::endl;
         return;
     }
 
     auto masksTensor = std::move(output_tensors[masksIdx]);
     const float* scoresData = nullptr;
-    if (scoresIdx >= 0) {
+    if (scoresIdx >= 0)
+    {
         scoresData = output_tensors[scoresIdx].GetTensorMutableData<float>();
     }
 
@@ -157,8 +166,10 @@ void Utils::PostProcess(std::vector<Ort::Value> &output_tensors, const cv::Mat &
         // Pick best mask by score if available
         float bestScore = -1.0f;
         size_t bestMaskIndex = 0;
-        if (scoresData) {
-            for (size_t i = 0; i < numMasks; ++i) {
+        if (scoresData)
+        {
+            for (size_t i = 0; i < numMasks; ++i)
+            {
                 const float s = scoresData[i];
                 if (s > bestScore) { bestScore = s; bestMaskIndex = i; }
             }
@@ -167,11 +178,14 @@ void Utils::PostProcess(std::vector<Ort::Value> &output_tensors, const cv::Mat &
         // Compute preprocessed region (top-left anchored) to undo letterbox
         float scale;
         int processedWidth, processedHeight;
-        if (iImg.cols >= iImg.rows) {
+        if (iImg.cols >= iImg.rows)
+        {
             scale = static_cast<float>(imgSize[0]) / static_cast<float>(iImg.cols);
             processedWidth  = imgSize[0];
             processedHeight = static_cast<int>(iImg.rows * scale);
-        } else {
+        }
+        else
+        {
             scale = static_cast<float>(imgSize[1]) / static_cast<float>(iImg.rows);
             processedWidth  = static_cast<int>(iImg.cols * scale);
             processedHeight = imgSize[1];
@@ -181,8 +195,7 @@ void Utils::PostProcess(std::vector<Ort::Value> &output_tensors, const cv::Mat &
 
         // Wrap selected mask plane as float prob map
         const size_t planeOffset = bestMaskIndex * height * width;
-        cv::Mat prob32f(static_cast<int>(height), static_cast<int>(width), CV_32F,
-                        const_cast<float*>(masksData + planeOffset));
+        cv::Mat prob32f(static_cast<int>(height), static_cast<int>(width), CV_32F, const_cast<float*>(masksData + planeOffset));
 
         // Crop padding region in mask space
         const int cropW = clampDim(static_cast<int>(std::round(static_cast<float>(width)  * processedWidth  / static_cast<float>(imgSize[0]))), 1, static_cast<int>(width));

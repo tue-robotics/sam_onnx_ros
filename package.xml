@@ -19,11 +19,9 @@
 
   <build_depend>libopencv-dev</build_depend>
   <build_depend>onnxruntime_ros</build_depend>
-  <build_depend>rosconsole</build_depend>
 
   <exec_depend>libopencv-dev</exec_depend>
   <exec_depend>onnxruntime_ros</exec_depend>
-  <exec_depend>rosconsole</exec_depend>
 
   <test_depend>catkin_lint_cmake</test_depend>
 

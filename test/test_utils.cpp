@@ -15,7 +15,8 @@ protected:
 
 // Checks that a grayscale (1-channel) image is converted to RGB (3-channel)
 // and the output image is exactly the requested target size (letterboxed).
-TEST_F(UtilsTest, GrayscaleToRGBKeepsSize) {
+TEST_F(UtilsTest, GrayscaleToRGBKeepsSize)
+{
     cv::Mat gray = cv::Mat::zeros(300, 500, CV_8UC1);
     cv::Mat out;
     std::vector<int> target{1024, 1024};
@@ -35,7 +36,8 @@ TEST_F(UtilsTest, GrayscaleToRGBKeepsSize) {
 // 1) Aspect ratio is preserved when resizing to the target.
 // 2) The resized image is placed at the top-left (0,0).
 // 3) The padding area is zero (black).
-TEST_F(UtilsTest, PreprocessTopLeftPaddingAndAspect) {
+TEST_F(UtilsTest, PreprocessTopLeftPaddingAndAspect)
+{
     const cv::Scalar fill(10, 20, 30); // Input color in BGR
     cv::Mat img(720, 1280, CV_8UC3, fill);
     cv::Mat out;
@@ -60,7 +62,8 @@ TEST_F(UtilsTest, PreprocessTopLeftPaddingAndAspect) {
     EXPECT_NEAR(mean_top[2], expected_rgb[2], 1.0);
 
     // The area below the resized content (padding) must be zeros.
-    if (resized_h < target[1]) {
+    if (resized_h < target[1])
+    {
         cv::Mat roi_pad = out(cv::Rect(0, resized_h, target[0], target[1] - resized_h));
         cv::Mat gray; cv::cvtColor(roi_pad, gray, cv::COLOR_BGR2GRAY);
         EXPECT_EQ(cv::countNonZero(gray), 0);
@@ -68,7 +71,8 @@ TEST_F(UtilsTest, PreprocessTopLeftPaddingAndAspect) {
 }
 
 // Explicitly ensure imgSize is interpreted as [W, H] in PreProcess for non-square targets.
-TEST_F(UtilsTest, PreprocessNonSquareWidthHeightOrder) {
+TEST_F(UtilsTest, PreprocessNonSquareWidthHeightOrder)
+{
     // Input image: H=300, W=500
     cv::Mat img(300, 500, CV_8UC3, cv::Scalar(5, 6, 7));
 
@@ -85,8 +89,8 @@ TEST_F(UtilsTest, PreprocessNonSquareWidthHeightOrder) {
 
 // Parameterized fixture: used with TEST_P to run the same test body
 // for many (input size, target size) pairs.
-class UtilsPreprocessParamTest
-    : public ::testing::TestWithParam<std::tuple<cv::Size, cv::Size>> {
+class UtilsPreprocessParamTest : public ::testing::TestWithParam<std::tuple<cv::Size, cv::Size>>
+{
 protected:
     Utils u;
 };
@@ -96,7 +100,8 @@ protected:
 // - Output size equals the target canvas.
 // - Output has 3 channels (RGB).
 // - The padding area (bottom or right) is zero depending on which side letterboxes.
-TEST_P(UtilsPreprocessParamTest, LetterboxWithinBoundsAndChannels3) {
+TEST_P(UtilsPreprocessParamTest, LetterboxWithinBoundsAndChannels3)
+{
     const auto [inSize, target] = GetParam();
     cv::Mat img(inSize, CV_8UC3, cv::Scalar(1, 2, 3));
     cv::Mat out;
@@ -106,16 +111,21 @@ TEST_P(UtilsPreprocessParamTest, LetterboxWithinBoundsAndChannels3) {
     EXPECT_EQ(out.channels(), 3);
 
     // Detect which side letterboxes and check that the padded region is zeros.
-    if (inSize.width >= inSize.height) {
+    if (inSize.width >= inSize.height)
+    {
         int resized_h = static_cast<int>(inSize.height / (inSize.width / static_cast<float>(target.width)));
-        if (resized_h < target.height) {
+        if (resized_h < target.height)
+        {
             cv::Mat roi_pad = out(cv::Rect(0, resized_h, target.width, target.height - resized_h));
             cv::Mat gray; cv::cvtColor(roi_pad, gray, cv::COLOR_BGR2GRAY);
             EXPECT_EQ(cv::countNonZero(gray), 0);
         }
-    } else {
+    }
+    else
+    {
         int resized_w = static_cast<int>(inSize.width / (inSize.height / static_cast<float>(target.height)));
-        if (resized_w < target.width) {
+        if (resized_w < target.width)
+        {
             cv::Mat roi_pad = out(cv::Rect(resized_w, 0, target.width - resized_w, target.height));
             cv::Mat gray; cv::cvtColor(roi_pad, gray, cv::COLOR_BGR2GRAY);
             EXPECT_EQ(cv::countNonZero(gray), 0);
@@ -137,13 +147,15 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // Separate fixture for point scaling tests.
-class UtilsScaleBboxPointsTest : public ::testing::Test {
+class UtilsScaleBboxPointsTest : public ::testing::Test
+{
 protected:
     Utils u;
 };
 
 // If the input size and target size are the same, scaling should do nothing.
-TEST_F(UtilsScaleBboxPointsTest, IdentityWhenSameSize) {
+TEST_F(UtilsScaleBboxPointsTest, IdentityWhenSameSize)
+{
     cv::Mat img(600, 800, CV_8UC3);
     std::vector<int> target{800, 600};
     std::vector<float> pts{100.f, 100.f, 700.f, 500.f};
@@ -159,7 +171,8 @@ TEST_F(UtilsScaleBboxPointsTest, IdentityWhenSameSize) {
 
 // When width drives the resize (landscape), both x and y are scaled by the same factor.
 // We expect coordinates to be multiplied by target_width / input_width.
-TEST_F(UtilsScaleBboxPointsTest, ScalesWidthDominant) {
+TEST_F(UtilsScaleBboxPointsTest, ScalesWidthDominant)
+{
     cv::Mat img(300, 600, CV_8UC3);                  // h=300, w=600 (w >= h)
     std::vector<int> target{1200, 600};              // width doubles
     std::vector<float> pts{100.f, 50.f, 500.f, 250.f};
@@ -176,7 +189,8 @@ TEST_F(UtilsScaleBboxPointsTest, ScalesWidthDominant) {
 
 // When height drives the resize (portrait), both x and y are scaled by the same factor.
 // We expect coordinates to be multiplied by target_height / input_height.
-TEST_F(UtilsScaleBboxPointsTest, ScalesHeightDominant) {
+TEST_F(UtilsScaleBboxPointsTest, ScalesHeightDominant)
+{
     cv::Mat img(600, 300, CV_8UC3);                  // h=600, w=300 (h > w)
     std::vector<int> target{600, 1200};              // height doubles
     std::vector<float> pts{100.f, 50.f, 200.f, 500.f};

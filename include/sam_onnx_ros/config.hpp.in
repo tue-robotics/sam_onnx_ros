@@ -3,6 +3,6 @@
 
 #define SAM_ONNX_FALSE 0
 #define SAM_ONNX_TRUE 1
-#define SAM_ONNX_ROS_CUDA_ENABLED SAM_ONNX_@sam_onnx_ros_CUDA_ENABLED@
+#define SAM_ONNX_ROS_CUDA_ENABLED SAM_ONNX_@SAM_onnx_ros_CUDA_ENABLED@
 
 #endif //#define SAM_ONNX_ROS_CONFIG_HPP_

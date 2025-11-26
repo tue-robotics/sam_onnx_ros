@@ -1,10 +1,11 @@
-#ifndef DL_TYPES_H
-#define DL_TYPES_H
+#ifndef SAM_ONNX_ROS_DL_TYPES_HPP_
+#define SAM_ONNX_ROS_DL_TYPES_HPP_
 
 #include <opencv4/opencv2/opencv.hpp>
 #include <opencv4/opencv2/core/types.hpp>
-#include <vector>
+
 #include <string>
+#include <vector>
 
 namespace SEG
 {
@@ -25,12 +26,12 @@ namespace SEG
         int intraOpNumThreads = 1;
 
         // Overloaded output operator for _DL_INIT_PARAM to print its contents
-        friend std::ostream &operator<<(std::ostream &os, const _DL_INIT_PARAM &param)
+        friend std::ostream& operator<<(std::ostream& os, const _DL_INIT_PARAM& param)
         {
             os << "modelPath: " << param.modelPath << "\n";
             os << "modelType: " << param.modelType << "\n";
             os << "imgSize: ";
-            for (const auto &size : param.imgSize)
+            for (const auto& size : param.imgSize)
                 os << size << " ";
             os << "\n";
             os << "cudaEnable: " << (param.cudaEnable ? "true" : "false") << "\n";
@@ -49,5 +50,7 @@ namespace SEG
         std::vector<cv::Mat> masks;
 
     } DL_RESULT;
+
 } // namespace SEG
-#endif // DL_TYPES_H
+
+#endif // SAM_ONNX_ROS_DL_TYPES_HPP_
