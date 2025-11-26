@@ -204,3 +204,10 @@ TEST_F(UtilsScaleBboxPointsTest, ScalesHeightDominant)
     EXPECT_NEAR(scaled[2], pts[2] * scale, 1e-3);
     EXPECT_NEAR(scaled[3], pts[3] * scale, 1e-3);
 }
+
+// Run all tests
+int main(int argc, char **argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
