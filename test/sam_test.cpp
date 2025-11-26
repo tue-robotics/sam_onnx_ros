@@ -85,7 +85,4 @@ TEST_F(SamInferenceTest, FullInferencePipeline)
     }
 
     SegmentAnything(samSegmentors, params_encoder, params_decoder, testImage_realistic, resSam, res);
-
-    // We only check that a vector is returned. (You can strengthen this to EXPECT_FALSE(masks.empty()).)
-    EXPECT_TRUE(res.masks.size() >= 0) << "Masks should be a valid output vector";
 }
