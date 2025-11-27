@@ -129,7 +129,8 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
     }
 }
 
-const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType, SEG::DL_RESULT& result) {
+const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType, SEG::DL_RESULT& result)
+{
     #ifdef benchmark
     clock_t starttime_1 = clock();
     #endif
