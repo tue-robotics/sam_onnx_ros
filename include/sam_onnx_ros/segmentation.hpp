@@ -16,8 +16,8 @@ Initialize(const std::filesystem::path& encoder_filename, const std::filesystem:
 
 void SegmentAnything(
     std::vector<std::unique_ptr<SAM>>& samSegmentors,
-    const SEG::_DL_INIT_PARAM& params_encoder,
-    const SEG::_DL_INIT_PARAM& params_decoder,
+    const SEG::DL_INIT_PARAM& params_encoder,
+    const SEG::DL_INIT_PARAM& params_decoder,
     const cv::Mat& img,
     std::vector<SEG::DL_RESULT>& resSam,
     SEG::DL_RESULT& res

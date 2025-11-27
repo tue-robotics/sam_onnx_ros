@@ -28,13 +28,15 @@ char* Utils::PreProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat&
     {
         // Width-dominant: scale by target width (iImgSize[0])
         resizeScales_ = iImg.cols / static_cast<float>(iImgSize.at(0));
-        cv::resize(oImg, oImg, cv::Size(iImgSize.at(0), static_cast<int>(iImg.rows / resizeScales_))); // fixed
+        // Resize to target width, scaling height to maintain aspect ratio
+        cv::resize(oImg, oImg, cv::Size(iImgSize.at(0), static_cast<int>(iImg.rows / resizeScales_)));
     }
     else
     {
         // Height-dominant: scale by target height (iImgSize[1])
         resizeScales_ = iImg.rows / static_cast<float>(iImgSize.at(1));
-        cv::resize(oImg, oImg, cv::Size(static_cast<int>(iImg.cols / resizeScales_), iImgSize.at(1))); // fixed
+        // Resize width proportionally to target height to maintain aspect ratio (height-dominant case)
+        cv::resize(oImg, oImg, cv::Size(static_cast<int>(iImg.cols / resizeScales_), iImgSize.at(1)));
     }
 
     // Letterbox top-left into a canvas of size (H=iImgSize[1], W=iImgSize[0])

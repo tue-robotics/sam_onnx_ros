@@ -25,7 +25,7 @@ A high-performance C++ implementation for SAM (segment anything model) using ONN
 | Speed                       | 34ms       | 11.176ms | 5.984|
 | **Whole Pipeline (Enc+Dec)** |         | | |
 | Parameters                  | 9.66M     | -| -|
-| Su of Speed                       | 92.92ms      | - |-  |
+| Sum of Speed                       | 92.92ms      | - |-  |
 
 
 ## 📂 Project Structure

@@ -61,7 +61,7 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
     bool result = std::regex_search(iParams.modelPath, pattern);
     if (result)
     {
-        Ret = "[SAM]:Your model path is error. Change your model path without chinese characters.";
+        Ret = "[SAM]: Your model path is error. Change your model path without chinese characters.";
         CONSOLE_BRIDGE_logWarn("%s", Ret);
         return Ret;
     }
@@ -146,8 +146,8 @@ const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oR
         std::vector<int64_t> inputNodeDims;
         if (modelType == SEG::SAM_SEGMENT_ENCODER)
         {
-            // NCHW with H=imgSize[1], W=imgSize[0]  // FIX
-            inputNodeDims = { 1, 3, imgSize_.at(1), imgSize_.at(0) }; // FIX
+            // NCHW with H=imgSize[1], W=imgSize[0]
+            inputNodeDims = { 1, 3, imgSize_.at(1), imgSize_.at(0) };
         }
         else if (modelType == SEG::SAM_SEGMENT_DECODER)
         {
@@ -334,7 +334,7 @@ const char* SAM::TensorProcess_(clock_t& starttime_1, const cv::Mat& iImg,
             break;
         }
     default:
-        CONSOLE_BRIDGE_logError("[SAM]: " "Not support model type.");
+        CONSOLE_BRIDGE_logError("[SAM]: Unsupported model type.");
   }
 
   return RET_OK;
@@ -351,8 +351,8 @@ char* SAM::WarmUpSession_(SEG::MODEL_TYPE modelType)
     {
         float* blob = new float[iImg.total() * 3];
         utilities.BlobFromImage(processedImg, blob);
-        // NCHW: H=imgSize[1], W=imgSize[0]  // FIX
-        std::vector<int64_t> SAM_input_node_dims = { 1, 3, imgSize_.at(1), imgSize_.at(0) }; // FIX
+        // NCHW: H=imgSize[1], W=imgSize[0]
+        std::vector<int64_t> SAM_input_node_dims = { 1, 3, imgSize_.at(1), imgSize_.at(0) };
         switch (modelType)
         {
             case SEG::SAM_SEGMENT_ENCODER:

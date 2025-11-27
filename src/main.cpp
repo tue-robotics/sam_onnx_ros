@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 
             SegmentAnything(samSegmentors, params_encoder, params_decoder, img, resSam, res);
             #ifdef LOGGING
-            for (const auto& result : results)
+            for (const auto& result : resSam)
             {
                 std::cout << "Image path:   " << img_path << "\n"
                           << "# boxes:      " << result.boxes.size() << "\n"
