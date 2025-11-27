@@ -1,0 +1,36 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-sam-project",
+            "dependsOrder": "sequence",
+            "dependsOn": ["configure-sam", "build-sam-binary"],
+            "problemMatcher": ["$gcc"],
+            "group": "build"
+        },
+        {
+            "label": "configure-sam",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
+                "-S", "${workspaceFolder}/",
+                "-B", "${workspaceFolder}/build"
+            ],
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "build-sam-binary",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--config", "Debug"
+            ],
+            "problemMatcher": ["$gcc"]
+        },
+
+    ]
+}

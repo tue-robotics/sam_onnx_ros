@@ -1,40 +1,30 @@
-#include <iostream>
-#include <iomanip>
-#include "sam_inference.h"
+#include "sam_onnx_ros/segmentation.hpp"
+
+#include <opencv2/opencv.hpp>
+
 #include <filesystem>
-#include <fstream>
-#include <random>
 
+int main(int argc, char *argv[])
+{
+    if (argc < 3)
+    {
+        std::cerr << "Not enough args provided" << std::endl;
+        return 1;
+    }
 
-
-void SegmentAnything() {
-
-    SAM* samSegmentor = new SAM;
-    SEG::DL_INIT_PARAM params;
-    SEG::DL_INIT_PARAM params1;
-
-    params.rectConfidenceThreshold = 0.1;
-    params.iouThreshold = 0.5;
-    params.modelPath = "SAM_encoder.onnx";
-    params.imgSize = { 1024, 1024 };
-
-    params1 = params;
-    params1.modelType = SEG::SAM_SEGMENT_DECODER;
-    params1.modelPath = "SAM_mask_decoder.onnx";
-
-
-    #ifdef USE_CUDA
-    params.cudaEnable = true;
-    #else
-    params.cudaEnable = false;
-    #endif
-
-
-
-    //Running inference
-    std::filesystem::path current_path = std::filesystem::current_path();
-    std::filesystem::path imgs_path = current_path / "../../pipeline/build/images";
+    // Running inference
+    std::vector<std::unique_ptr<SAM>> samSegmentors;
+    SEG::DL_INIT_PARAM params_encoder;
+    SEG::DL_INIT_PARAM params_decoder;
     std::vector<SEG::DL_RESULT> resSam;
+    SEG::DL_RESULT res;
+
+    const std::filesystem::path encoder_name = argv[1];
+    const std::filesystem::path decoder_name = argv[2];
+
+    std::tie(samSegmentors, params_encoder, params_decoder, res, resSam) = Initialize(encoder_name, decoder_name);
+
+    std::filesystem::path imgs_path = argv[3];
     for (auto& i : std::filesystem::directory_iterator(imgs_path))
     {
         if (i.path().extension() == ".jpg" || i.path().extension() == ".png" || i.path().extension() == ".jpeg")
@@ -42,26 +32,17 @@ void SegmentAnything() {
             std::string img_path = i.path().string();
             cv::Mat img = cv::imread(img_path);
 
-            SEG::DL_RESULT res;
-            samSegmentor->CreateSession(params);
-            SEG::MODEL_TYPE modelTypeRef = params.modelType;
-            samSegmentor->RunSession(img, resSam, modelTypeRef, res);
-
-
-
-
-            samSegmentor->CreateSession(params1);
-            modelTypeRef = params1.modelType;
-            samSegmentor->RunSession(img, resSam, modelTypeRef, res);
-            std::cout << "Press any key to exit" << std::endl;
-            cv::imshow("Result of Detection", img);
-            cv::waitKey(0);
-            cv::destroyAllWindows();
+            SegmentAnything(samSegmentors, params_encoder, params_decoder, img, resSam, res);
+            #ifdef LOGGING
+            for (const auto& result : resSam)
+            {
+                std::cout << "Image path:   " << img_path << "\n"
+                          << "# boxes:      " << result.boxes.size() << "\n"
+                          << "# embeddings: " << result.embeddings.size() << "\n"
+                          << "# masks:      " << result.masks.size() << "\n";
+            }
+            #endif
         }
     }
-}
-
-int main()
-{
-    SegmentAnything();
+    return 0;
 }
