@@ -118,14 +118,9 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
     }
     catch (const std::exception& e)
     {
-        const char* str1 = "[SAM]: ";
-        const char* str2 = e.what();
-        std::string str_result = std::string(str1) + std::string(str2);
-        char* merged = new char[str_result.length() + 1];
-        std::strcpy(merged, str_result.c_str());
-        CONSOLE_BRIDGE_logWarn("%s", merged);
-        delete[] merged;
-        return "[SAM]: CreateSession failed.";
+        std::string error_msg = "[SAM]: Failed to create session: " + std::string(e.what());
+        CONSOLE_BRIDGE_logWarn("%s", error_msg.c_str());
+        throw std::runtime_error(error_msg);
     }
 }
 

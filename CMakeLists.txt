@@ -9,13 +9,13 @@ add_compile_options(-Wextra -Werror=extra)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(console_bridge REQUIRED)
-find_package(OpenCV REQUIRED)
 find_package(catkin REQUIRED
   COMPONENTS
   onnxruntime_ros
 )
 
+find_package(console_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
 
 set(${PROJECT_NAME}_CUDA_ENABLED ${onnxruntime_ros_CUDA_ENABLED})
 if(${PROJECT_NAME}_CUDA_ENABLED)
@@ -47,9 +47,9 @@ include_directories(
   ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   SYSTEM
   ${${PROJECT_NAME}_CUDA_INCLUDE_DIRS}
+  ${console_bridge_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
-  ${console_bridge_INCLUDE_DIRS}
 )
 
 add_library(${PROJECT_NAME}
@@ -59,9 +59,9 @@ add_library(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME}
+  ${console_bridge_LIBRARIES}
   ${OpenCV_LIBRARIES}
   ${catkin_LIBRARIES}
-  ${console_bridge_LIBRARIES}
   ${${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES}
 )
 

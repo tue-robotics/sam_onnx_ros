@@ -71,8 +71,8 @@ TEST_F(SamInferenceTest, CreateSessionWithValidModel)
 TEST_F(SamInferenceTest, CreateSessionWithInvalidModel)
 {
     params_encoder.modelPath = "nonexistent_model.onnx";
-    const char* result = samSegmentors[0]->CreateSession(params_encoder);
-    EXPECT_NE(result, nullptr) << "CreateSession should fail with invalid model path";
+    EXPECT_THROW(samSegmentors[0]->CreateSession(params_encoder), std::runtime_error)
+        << "CreateSession should throw an exception with invalid model path";
 }
 
 // End-to-end check: with both encoder/decoder models present, the pipeline runs

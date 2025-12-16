@@ -1,5 +1,7 @@
 #include "sam_onnx_ros/utils.hpp"
 
+#include <console_bridge/console.h>
+
 // #define LOGGING
 
 // Constructor
@@ -129,7 +131,7 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
 {
     if (output_tensors.empty())
     {
-        std::cerr << "[SAM]: Decoder returned no outputs." << std::endl;
+        CONSOLE_BRIDGE_logError("[SAM]: Decoder returned no outputs.");
         return;
     }
 
@@ -145,7 +147,7 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
 
     if (masksIdx < 0)
     {
-        std::cerr << "[SAM]: No 4D mask tensor found in decoder outputs." << std::endl;
+        CONSOLE_BRIDGE_logError("[SAM]: No 4D mask tensor found in decoder outputs.");
         return;
     }
 
@@ -241,6 +243,6 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
     }
     else
     {
-        std::cerr << "[SAM]: Unexpected mask tensor shape." << std::endl;
+        CONSOLE_BRIDGE_logError("[SAM]: Unexpected mask tensor shape.");
     }
 }
