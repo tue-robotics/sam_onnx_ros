@@ -132,6 +132,8 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
     if (output_tensors.empty())
     {
         CONSOLE_BRIDGE_logError("[SAM]: Decoder returned no outputs.");
+        // Push empty mask to preserve index alignment with boxes (one mask slot per box).
+        result.masks.push_back(cv::Mat());
         return;
     }
 
@@ -148,6 +150,8 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
     if (masksIdx < 0)
     {
         CONSOLE_BRIDGE_logError("[SAM]: No 4D mask tensor found in decoder outputs.");
+        // Push empty mask to preserve index alignment with boxes (one mask slot per box).
+        result.masks.push_back(cv::Mat());
         return;
     }
 
@@ -244,5 +248,7 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
     else
     {
         CONSOLE_BRIDGE_logError("[SAM]: Unexpected mask tensor shape.");
+        // Push empty mask to preserve index alignment with boxes (one mask slot per box).
+        result.masks.push_back(cv::Mat());
     }
 }
