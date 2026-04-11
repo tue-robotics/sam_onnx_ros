@@ -96,7 +96,7 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
             strcpy(temp_buf, input_node_name.get());
             inputNodeNames_.push_back(temp_buf);
         }
-    
+
         size_t OutputNodesNum = session_->GetOutputCount();
         for (size_t i = 0; i < OutputNodesNum; ++i)
         {
@@ -177,8 +177,8 @@ const char* SAM::TensorProcess_(clock_t& starttime_1, const cv::Mat& iImg,
             #ifdef benchmark
             clock_t starttime_2 = clock();
             #endif // benchmark
-            
-            auto outputTensor = 
+
+            auto outputTensor =
                 session_->Run(options_, inputNodeNames_.data(), &inputTensor, 1,
                        outputNodeNames_.data(), outputNodeNames_.size());
             #ifdef benchmark
@@ -388,7 +388,7 @@ char* SAM::WarmUpSession_(SEG::MODEL_TYPE modelType)
                         dummyEmbeddings.data(), // Use the embeddings from the encoder
                         dummyEmbeddings.size(), // Total number of elements
                         decoderInputDims.data(), decoderInputDims.size());
-    
+
                     // Convert bounding box to points
                     // Use center of bounding box as foreground point
                     float centerX = bbox.x + bbox.width / 2.0;
