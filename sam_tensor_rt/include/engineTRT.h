@@ -2,6 +2,8 @@
 
 #include "NvInfer.h"
 #include <opencv2/opencv.hpp>
+#include <string>
+#include <vector>
 
 using namespace nvinfer1;
 using namespace std;
@@ -111,6 +113,8 @@ private:
     /// \param stream The CUDA stream to use for the copy operation.
     void copyOutputToHostAsync(const cudaStream_t& stream = 0);
 
+    size_t getTensorIndex(const std::string& tensorName) const;
+
     vector<Dims> mInputDims;            //!< The dimensions of the input to the network.
     vector<Dims> mOutputDims;           //!< The dimensions of the output to the network.
     vector<void*> mGpuBuffers;          //!< The vector of device buffers needed for engine execution.
@@ -122,4 +126,9 @@ private:
     IRuntime* mRuntime;                 //!< The TensorRT runtime used to deserialize the engine.
     ICudaEngine* mEngine;               //!< The TensorRT engine used to run the network.
     IExecutionContext* mContext;        //!< The context for executing inference using an ICudaEngine.
+
+    vector<string> mInputNames;         //!< Input tensor names expected by the network.
+    vector<string> mOutputNames;        //!< Output tensor names expected by the network.
+    vector<string> mTensorNames;        //!< IO tensor names in TensorRT engine order.
+    vector<TensorIOMode> mTensorModes;  //!< IO tensor modes aligned with mTensorNames.
 };

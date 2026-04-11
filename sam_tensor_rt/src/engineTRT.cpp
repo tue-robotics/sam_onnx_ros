@@ -25,27 +25,36 @@ std::string getFileExtension(const std::string& filePath) {
 }
 
 EngineTRT::EngineTRT(string modelPath, vector<string> inputNames, vector<string> outputNames, bool isDynamicShape, bool isFP16) {
+    mRuntime = nullptr;
+    mEngine = nullptr;
+    mContext = nullptr;
+    mCudaStream = nullptr;
+    mInputNames = std::move(inputNames);
+    mOutputNames = std::move(outputNames);
+
     // Check if the model file has an ".onnx" extension
     if (getFileExtension(modelPath) == "onnx") {
         // If the file is an ONNX model, build the engine using the provided parameters
         cout << "Building Engine from " << modelPath << endl;
-        build(modelPath, inputNames, outputNames, isDynamicShape, isFP16);
+        build(modelPath, mInputNames, mOutputNames, isDynamicShape, isFP16);
     }
     else {
         // If the file is not an ONNX model, deserialize an existing engine
         cout << "Deserializing Engine." << endl;
-        deserializeEngine(modelPath, inputNames, outputNames);
+        deserializeEngine(modelPath, mInputNames, mOutputNames);
     }
 }
 
 EngineTRT::~EngineTRT() {
     // Release the CUDA stream
-    cudaStreamDestroy(mCudaStream);
+    if (mCudaStream)
+        cudaStreamDestroy(mCudaStream);
     // Free GPU buffers allocated for inference
-    for (int i = 0; i < mGpuBuffers.size(); i++)
-        CUDA_CHECK(cudaFree(mGpuBuffers[i]));
+    for (size_t i = 0; i < mGpuBuffers.size(); ++i)
+        if (mGpuBuffers[i])
+            CUDA_CHECK(cudaFree(mGpuBuffers[i]));
     // Free CPU buffers
-    for (int i = 0; i < mCpuBuffers.size(); i++)
+    for (size_t i = 0; i < mCpuBuffers.size(); ++i)
         delete[] mCpuBuffers[i];
 
     // Clean up and destroy the TensorRT engine components
@@ -106,10 +115,10 @@ void EngineTRT::build(string onnxPath, vector<string> inputNames, vector<string>
     assert(parser != nullptr);  // Ensure the parser is created successfully
 
     // Parse the ONNX model from the specified file.
-    bool parsed = parser->parseFromFile(onnxPath.c_str(), static_cast<int>(gLogger.getReportableSeverity()));
-
-    // Ensure the CUDA stream used for profiling is valid.
-    assert(mCudaStream != nullptr);
+    if (!parser->parseFromFile(onnxPath.c_str(), static_cast<int>(gLogger.getReportableSeverity())))
+    {
+        throw std::runtime_error("Failed to parse ONNX file: " + onnxPath);
+    }
 
     // Serialize the built network into a binary plan for execution.
     IHostMemory* plan{ builder->buildSerializedNetwork(*network, *config) };
@@ -120,7 +129,7 @@ void EngineTRT::build(string onnxPath, vector<string> inputNames, vector<string>
     assert(mRuntime != nullptr);  // Ensure the runtime is created successfully
 
     // Deserialize the serialized plan to create an execution engine.
-    mEngine = mRuntime->deserializeCudaEngine(plan->data(), plan->size(), nullptr);
+    mEngine = mRuntime->deserializeCudaEngine(plan->data(), plan->size());
     assert(mEngine != nullptr);  // Ensure the engine was deserialized successfully
 
     // Create an execution context for running inference.
@@ -147,7 +156,7 @@ void EngineTRT::saveEngine(const std::string& engineFilePath) {
             engineFile.write(reinterpret_cast<const char*>(serializedEngine->data()), serializedEngine->size());
             std::cout << "Serialized engine saved to " << engineFilePath << std::endl;
         }
-        serializedEngine->destroy();  // Destroy the serialized engine memory
+        delete serializedEngine;  // Destroy the serialized engine memory
     }
 }
 
@@ -178,7 +187,7 @@ void EngineTRT::deserializeEngine(string engine_name, vector<string> inputNames,
     delete[] serializedEngine;  // Free the serialized engine memory
 
     // Ensure the number of bindings matches the expected number of inputs and outputs.
-    assert(mEngine->getNbBindings() == inputNames.size() + outputNames.size());
+    assert(static_cast<size_t>(mEngine->getNbIOTensors()) == inputNames.size() + outputNames.size());
 
     // Initialize the engine with the input and output names.
     initialize(inputNames, outputNames);
@@ -186,27 +195,32 @@ void EngineTRT::deserializeEngine(string engine_name, vector<string> inputNames,
 
 void EngineTRT::initialize(vector<string> inputNames, vector<string> outputNames)
 {
-    // Loop through the input names and get the corresponding binding index from the TensorRT engine
-    for (int i = 0; i < inputNames.size(); i++)
-    {
-        const int inputIndex = mEngine->getBindingIndex(inputNames[i].c_str());
-    }
-
-    // Loop through the output names and get the corresponding binding index from the TensorRT engine
-    for (int i = 0; i < outputNames.size(); i++)
-    {
-        const int outputIndex = mEngine->getBindingIndex(outputNames[i].c_str());
-    }
+    (void)inputNames;
+    (void)outputNames;
 
     // Resize the GPU and CPU buffer vectors to accommodate all the engine bindings
-    mGpuBuffers.resize(mEngine->getNbBindings());
-    mCpuBuffers.resize(mEngine->getNbBindings());
+    const int32_t nbTensors = mEngine->getNbIOTensors();
+    mTensorNames.clear();
+    mTensorModes.clear();
+    mInputDims.clear();
+    mOutputDims.clear();
+    mGpuBuffers.resize(nbTensors, nullptr);
+    mCpuBuffers.resize(nbTensors, nullptr);
+    mBufferBindingBytes.clear();
+    mBufferBindingSizes.clear();
 
     // Loop through all bindings to allocate memory and store dimension information
-    for (size_t i = 0; i < mEngine->getNbBindings(); ++i)
+    for (int32_t i = 0; i < nbTensors; ++i)
     {
+        const char* tensorName = mEngine->getIOTensorName(i);
+        const Dims tensorDims = mEngine->getTensorShape(tensorName);
+        const TensorIOMode tensorMode = mEngine->getTensorIOMode(tensorName);
+
+        mTensorNames.emplace_back(tensorName);
+        mTensorModes.push_back(tensorMode);
+
         // Calculate the size required for the binding based on its dimensions
-        size_t binding_size = getSizeByDim(mEngine->getBindingDimensions(i));
+        const size_t binding_size = getSizeByDim(tensorDims);
         mBufferBindingSizes.push_back(binding_size);  // Store the size of the binding
         mBufferBindingBytes.push_back(binding_size * sizeof(float));  // Calculate the size in bytes
 
@@ -214,21 +228,26 @@ void EngineTRT::initialize(vector<string> inputNames, vector<string> outputNames
         mCpuBuffers[i] = new float[binding_size];
 
         // Allocate device memory for the GPU buffer
-        cudaMalloc(&mGpuBuffers[i], mBufferBindingBytes[i]);
+        CUDA_CHECK(cudaMalloc(&mGpuBuffers[i], mBufferBindingBytes[i]));
 
         // Store input and output dimensions separately based on whether the binding is an input or output
-        if (mEngine->bindingIsInput(i))
+        if (tensorMode == TensorIOMode::kINPUT)
         {
-            mInputDims.push_back(mEngine->getBindingDimensions(i));
+            mInputDims.push_back(tensorDims);
         }
         else
         {
-            mOutputDims.push_back(mEngine->getBindingDimensions(i));
+            mOutputDims.push_back(tensorDims);
         }
     }
 
     // Create a CUDA stream for asynchronous operations
     CUDA_CHECK(cudaStreamCreate(&mCudaStream));
+
+    for (size_t i = 0; i < mTensorNames.size(); ++i)
+    {
+        mContext->setTensorAddress(mTensorNames[i].c_str(), mGpuBuffers[i]);
+    }
 }
 
 bool EngineTRT::infer()
@@ -236,8 +255,8 @@ bool EngineTRT::infer()
     // Copy data from host (CPU) input buffers to device (GPU) input buffers asynchronously
     copyInputToDeviceAsync(mCudaStream);
 
-    // Perform inference using TensorRT, passing the GPU buffers
-    bool status = mContext->executeV2(mGpuBuffers.data());
+    // Perform inference using TensorRT.
+    bool status = mContext->enqueueV3(mCudaStream);
 
     if (!status)
     {
@@ -248,6 +267,7 @@ bool EngineTRT::infer()
 
     // Copy the results from device (GPU) output buffers to host (CPU) output buffers asynchronously
     copyOutputToHostAsync(mCudaStream);
+    CUDA_CHECK(cudaStreamSynchronize(mCudaStream));
 
     // Return true if inference was successful
     return true;
@@ -270,7 +290,7 @@ void EngineTRT::copyOutputToHostAsync(const cudaStream_t& stream)
 void EngineTRT::memcpyBuffers(const bool copyInput, const bool deviceToHost, const bool async, const cudaStream_t& stream)
 {
     // Loop through all bindings (inputs and outputs) in the TensorRT engine.
-    for (int i = 0; i < mEngine->getNbBindings(); i++)
+    for (size_t i = 0; i < mTensorNames.size(); ++i)
     {
         // Determine the destination and source pointers based on the copy direction.
         void* dstPtr = deviceToHost ? mCpuBuffers[i] : mGpuBuffers[i];
@@ -281,7 +301,8 @@ void EngineTRT::memcpyBuffers(const bool copyInput, const bool deviceToHost, con
         const cudaMemcpyKind memcpyType = deviceToHost ? cudaMemcpyDeviceToHost : cudaMemcpyHostToDevice;
 
         // Check if the current binding is an input or output and copy accordingly.
-        if ((copyInput && mEngine->bindingIsInput(i)) || (!copyInput && !mEngine->bindingIsInput(i)))
+        if ((copyInput && mTensorModes[i] == TensorIOMode::kINPUT)
+            || (!copyInput && mTensorModes[i] == TensorIOMode::kOUTPUT))
         {
             if (async)
             {
@@ -302,7 +323,7 @@ size_t EngineTRT::getSizeByDim(const Dims& dims)
     size_t size = 1;
 
     // Loop through each dimension and multiply to calculate the total size.
-    for (size_t i = 0; i < dims.nbDims; ++i)
+    for (int32_t i = 0; i < dims.nbDims; ++i)
     {
         // If the dimension is -1 (dynamic), use a predefined maximum size.
         if (dims.d[i] == -1)
@@ -316,10 +337,6 @@ size_t EngineTRT::getSizeByDim(const Dims& dims)
 
 void EngineTRT::setInput(Mat& image)
 {
-    // Extract input dimensions (height and width) from the model's input shape
-    const int inputH = mInputDims[0].d[2];
-    const int inputW = mInputDims[0].d[3];
-
     int i = 0;  // Index counter for buffer placement
 
     // Iterate over each pixel in the input image
@@ -344,43 +361,67 @@ void EngineTRT::setInput(Mat& image)
 
 void EngineTRT::setInput(float* features, float* imagePointCoords, float* imagePointLabels, float* maskInput, float* hasMaskInput, int numPoints)
 {
+    const size_t coordsIdx = getTensorIndex(mInputNames[1]);
+    const size_t labelsIdx = getTensorIndex(mInputNames[2]);
+
     // Clean up old buffers and allocate new buffers for the input data
-    delete[] mCpuBuffers[1];
-    delete[] mCpuBuffers[2];
-    mCpuBuffers[1] = new float[numPoints * 2];  // Buffer for point coordinates
-    mCpuBuffers[2] = new float[numPoints];      // Buffer for point labels
+    delete[] mCpuBuffers[coordsIdx];
+    delete[] mCpuBuffers[labelsIdx];
+    if (mGpuBuffers[coordsIdx])
+        CUDA_CHECK(cudaFree(mGpuBuffers[coordsIdx]));
+    if (mGpuBuffers[labelsIdx])
+        CUDA_CHECK(cudaFree(mGpuBuffers[labelsIdx]));
+    mCpuBuffers[coordsIdx] = new float[numPoints * 2];  // Buffer for point coordinates
+    mCpuBuffers[labelsIdx] = new float[numPoints];      // Buffer for point labels
 
     // Allocate memory on the GPU for the input data
-    cudaMalloc(&mGpuBuffers[1], sizeof(float) * numPoints * 2); // Coordinates
-    cudaMalloc(&mGpuBuffers[2], sizeof(float) * numPoints);     // Labels
+    CUDA_CHECK(cudaMalloc(&mGpuBuffers[coordsIdx], sizeof(float) * numPoints * 2)); // Coordinates
+    CUDA_CHECK(cudaMalloc(&mGpuBuffers[labelsIdx], sizeof(float) * numPoints));     // Labels
 
     // Set the size of the data binding in bytes for TensorRT
-    mBufferBindingBytes[1] = sizeof(float) * numPoints * 2;
-    mBufferBindingBytes[2] = sizeof(float) * numPoints;
+    mBufferBindingBytes[coordsIdx] = sizeof(float) * numPoints * 2;
+    mBufferBindingBytes[labelsIdx] = sizeof(float) * numPoints;
 
     // Copy input data into CPU buffers
-    memcpy(mCpuBuffers[0], features, mBufferBindingBytes[0]);
-    memcpy(mCpuBuffers[1], imagePointCoords, sizeof(float) * numPoints * 2);
-    memcpy(mCpuBuffers[2], imagePointLabels, sizeof(float) * numPoints);
-    memcpy(mCpuBuffers[3], maskInput, mBufferBindingBytes[3]);
-    memcpy(mCpuBuffers[4], hasMaskInput, mBufferBindingBytes[4]);
+    memcpy(mCpuBuffers[getTensorIndex(mInputNames[0])], features, mBufferBindingBytes[getTensorIndex(mInputNames[0])]);
+    memcpy(mCpuBuffers[coordsIdx], imagePointCoords, sizeof(float) * numPoints * 2);
+    memcpy(mCpuBuffers[labelsIdx], imagePointLabels, sizeof(float) * numPoints);
+    memcpy(mCpuBuffers[getTensorIndex(mInputNames[3])], maskInput, mBufferBindingBytes[getTensorIndex(mInputNames[3])]);
+    memcpy(mCpuBuffers[getTensorIndex(mInputNames[4])], hasMaskInput, mBufferBindingBytes[getTensorIndex(mInputNames[4])]);
 
     // Configure TensorRT to use a dynamic input shape
     mContext->setOptimizationProfileAsync(0, mCudaStream); // Set the optimization profile
-    mContext->setBindingDimensions(1, Dims3{ 1, numPoints, 2 }); // Set input dimensions for coordinates
-    mContext->setBindingDimensions(2, Dims2{ 1, numPoints });    // Set input dimensions for labels
+    mContext->setInputShape(mInputNames[1].c_str(), Dims3{ 1, numPoints, 2 }); // Set input dimensions for coordinates
+    mContext->setInputShape(mInputNames[2].c_str(), Dims2{ 1, numPoints });    // Set input dimensions for labels
+    mContext->setTensorAddress(mInputNames[1].c_str(), mGpuBuffers[coordsIdx]);
+    mContext->setTensorAddress(mInputNames[2].c_str(), mGpuBuffers[labelsIdx]);
 }
 
 void EngineTRT::getOutput(float* features)
 {
     // Copy the output features from the CPU buffer to the provided memory
-    memcpy(features, mCpuBuffers[1], mBufferBindingBytes[1]);
+    const size_t outputIdx = getTensorIndex(mOutputNames[0]);
+    memcpy(features, mCpuBuffers[outputIdx], mBufferBindingBytes[outputIdx]);
 }
 
 void EngineTRT::getOutput(float* iouPrediction, float* lowResolutionMasks)
 {
     // Copy the low-resolution masks and IOU predictions from the CPU buffers
-    memcpy(lowResolutionMasks, mCpuBuffers[5], mBufferBindingBytes[5]);
-    memcpy(iouPrediction, mCpuBuffers[6], mBufferBindingBytes[6]);
+    const size_t iouIdx = getTensorIndex(mOutputNames[0]);
+    const size_t masksIdx = getTensorIndex(mOutputNames[1]);
+    memcpy(iouPrediction, mCpuBuffers[iouIdx], mBufferBindingBytes[iouIdx]);
+    memcpy(lowResolutionMasks, mCpuBuffers[masksIdx], mBufferBindingBytes[masksIdx]);
 }
 
+size_t EngineTRT::getTensorIndex(const std::string& tensorName) const
+{
+    for (size_t i = 0; i < mTensorNames.size(); ++i)
+    {
+        if (mTensorNames[i] == tensorName)
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("Tensor not found in engine: " + tensorName);
+}

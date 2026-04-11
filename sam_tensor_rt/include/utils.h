@@ -54,6 +54,8 @@ struct PointData {
 
 // Mouse callback function to capture the clicked point
 void mouseCallback(int event, int x, int y, int flags, void* param) {
+    (void)flags;
+    (void)param;
     if (event == EVENT_LBUTTONDOWN) {
         selectedPoint = Point(x, y);
         pointSelected = true;
@@ -107,6 +109,7 @@ void overlay(Mat& image, Mat& mask, cv::Scalar color = cv::Scalar(128, 64, 128),
 /// \param flags Any relevant flags associated with the mouse event.
 /// \param userdata User data pointer to store the PointData structure.
 void onMouse(int event, int x, int y, int flags, void* userdata) {
+    (void)flags;
     PointData* pd = (PointData*)userdata;
     if (event == cv::EVENT_LBUTTONDOWN) {
         // Save the clicked coordinates
