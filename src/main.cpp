@@ -17,12 +17,6 @@
 
 namespace
 {
-enum class Backend
-{
-    kOnnx,
-    kSpeedSam,
-};
-
 enum class PromptMode
 {
     kBbox,
@@ -60,15 +54,15 @@ std::vector<std::filesystem::path> CollectInputs(const std::filesystem::path& in
     return images;
 }
 
-Backend ParseBackend(const std::string& value)
+SEG::Backend ParseBackend(const std::string& value)
 {
     if (value == "onnx")
     {
-        return Backend::kOnnx;
+        return SEG::Backend::kOnnx;
     }
     if (value == "speedsam")
     {
-        return Backend::kSpeedSam;
+        return SEG::Backend::kSpeedSam;
     }
 
     throw std::invalid_argument("Unsupported backend '" + value + "'. Use 'onnx' or 'speedsam'.");
@@ -94,17 +88,19 @@ void PrintUsage(const char* executable)
               << "[--backend=onnx|speedsam] [--prompt=bbox|point]" << std::endl;
 }
 
-int RunOnnxMain(const std::filesystem::path& encoder_name,
-                const std::filesystem::path& decoder_name,
-                const std::filesystem::path& input_path)
+int RunMain(const std::filesystem::path& encoder_name,
+            const std::filesystem::path& decoder_name,
+            const std::filesystem::path& input_path,
+            SEG::Backend backend,
+            PromptMode prompt_mode)
 {
-    std::vector<std::unique_ptr<SAM>> samSegmentors;
+    SamWrapper samWrapper;
     SEG::DL_INIT_PARAM params_encoder;
     SEG::DL_INIT_PARAM params_decoder;
     std::vector<SEG::DL_RESULT> resSam;
     SEG::DL_RESULT res;
 
-    std::tie(samSegmentors, params_encoder, params_decoder, res, resSam) = Initialize(encoder_name, decoder_name);
+    std::tie(samWrapper, params_encoder, params_decoder, res, resSam) = Initialize(encoder_name, decoder_name, backend);
 
     const auto images = CollectInputs(input_path);
     if (images.empty())
@@ -122,7 +118,45 @@ int RunOnnxMain(const std::filesystem::path& encoder_name,
             continue;
         }
 
-        SegmentAnything(samSegmentors, params_encoder, params_decoder, img, resSam, res);
+        // Just populate dummy boxes for decoder as if given by an Object detection Node
+        res.boxes.clear();
+        resSam.clear();
+
+        if (prompt_mode == PromptMode::kBbox)
+        {
+            res.boxes.push_back(cv::Rect(0, 0, std::max(img.cols - 1, 0), std::max(img.rows - 1, 0)));
+        }
+        else
+        {
+            // Center point fallback logic if extended later
+            res.boxes.push_back(cv::Rect(img.cols / 2 - 10, img.rows / 2 - 10, 20, 20));
+        }
+
+        SegmentAnything(samWrapper, params_encoder, params_decoder, img, resSam, res);
+
+        std::string modeStr = (backend == SEG::Backend::kSpeedSam) ? "speedsam" : "onnx";
+        const std::filesystem::path output_path =
+            image_path.parent_path() /
+            (image_path.stem().string() +
+             (prompt_mode == PromptMode::kBbox ? "_" + modeStr + "_bbox_mask.png" : "_" + modeStr + "_point_mask.png"));
+
+        if (!resSam.empty() && !resSam.front().masks.empty())
+        {
+            cv::Mat rendered = img.clone();
+            cv::Mat mask = resSam.front().masks.front();
+            if (!mask.empty()) {
+                cv::Mat colorMask = cv::Mat::zeros(rendered.size(), CV_8UC3);
+                colorMask.setTo(cv::Scalar(0, 200, 0), mask);
+                cv::addWeighted(rendered, 0.7, colorMask, 0.3, 0, rendered);
+                std::vector<std::vector<cv::Point>> contours;
+                cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+                cv::drawContours(rendered, contours, -1, cv::Scalar(0, 255, 255), 2);
+
+                cv::imwrite(output_path.string(), rendered);
+                std::cout << "Saved output to " << output_path << std::endl;
+            }
+        }
+
 #ifdef LOGGING
         for (const auto& result : resSam)
         {
@@ -137,65 +171,6 @@ int RunOnnxMain(const std::filesystem::path& encoder_name,
     return 0;
 }
 
-#if SAM_ONNX_ROS_TENSORRT_ENABLED
-int RunSpeedSamMain(const std::filesystem::path& encoder_name,
-                    const std::filesystem::path& decoder_name,
-                    const std::filesystem::path& input_path,
-                    PromptMode prompt_mode)
-{
-    const auto images = CollectInputs(input_path);
-    if (images.empty())
-    {
-        std::cerr << "No supported images found in " << input_path << std::endl;
-        return 1;
-    }
-
-    SpeedSam speed_sam(encoder_name.string(), decoder_name.string());
-
-    for (const auto& image_path : images)
-    {
-        cv::Mat image = cv::imread(image_path.string());
-        if (image.empty())
-        {
-            std::cerr << "Failed to read image: " << image_path << std::endl;
-            continue;
-        }
-
-        const std::filesystem::path output_path =
-            image_path.parent_path() /
-            (image_path.stem().string() +
-             (prompt_mode == PromptMode::kBbox ? "_speedsam_bbox_mask.png" : "_speedsam_point_mask.png"));
-
-        cv::Mat mask;
-        if (prompt_mode == PromptMode::kPoint)
-        {
-            const cv::Point center(image.cols / 2, image.rows / 2);
-            mask = speed_sam.predict(image, {center}, {1.0f});
-        }
-        else
-        {
-            const std::vector<cv::Point> bboxPoints = {
-                cv::Point(0, 0),
-                cv::Point(std::max(image.cols - 1, 0), std::max(image.rows - 1, 0))
-            };
-            mask = speed_sam.predict(image, bboxPoints, {2.0f, 3.0f});
-        }
-
-        if (mask.empty())
-        {
-            std::cerr << "SpeedSAM produced an empty mask for " << image_path << std::endl;
-            continue;
-        }
-
-        cv::Mat rendered = image.clone();
-        overlay(rendered, mask);
-        cv::imwrite(output_path.string(), rendered);
-        std::cout << "Saved SpeedSAM output to " << output_path << std::endl;
-    }
-
-    return 0;
-}
-#endif
 } // namespace
 
 int main(int argc, char *argv[])
@@ -210,7 +185,7 @@ int main(int argc, char *argv[])
     const std::filesystem::path decoder_name = argv[2];
     std::filesystem::path imgs_path = argv[3];
 
-    Backend backend = Backend::kOnnx;
+    SEG::Backend backend = SEG::Backend::kOnnx;
     PromptMode prompt_mode = PromptMode::kBbox;
 
     try
@@ -244,16 +219,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (backend == Backend::kOnnx)
+#if !SAM_ONNX_ROS_TENSORRT_ENABLED
+    if (backend == SEG::Backend::kSpeedSam)
     {
-        return RunOnnxMain(encoder_name, decoder_name, imgs_path);
+        std::cerr << "This binary was built without TensorRT support. Install TensorRT and rebuild, or use --backend=onnx." << std::endl;
+        return 2;
     }
-
-#if SAM_ONNX_ROS_TENSORRT_ENABLED
-    return RunSpeedSamMain(encoder_name, decoder_name, imgs_path, prompt_mode);
-#else
-    (void)prompt_mode;
-    std::cerr << "This binary was built without TensorRT support. Install TensorRT and rebuild, or use --backend=onnx." << std::endl;
-    return 2;
 #endif
+
+    return RunMain(encoder_name, decoder_name, imgs_path, backend, prompt_mode);
 }

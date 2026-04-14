@@ -60,13 +60,34 @@ Mat SpeedSam::predict(Mat& image, vector<Point> points, vector<float> labels)
     mMaskDecoder->infer();
     mMaskDecoder->getOutput(mIouPrediction, mLowResMasks);
 
+    // Find the best mask index based on IOU
+    int bestMaskIndex = 0;
+    float maxIou = -1.0f;
+    for (int i = 0; i < NUM_LABELS; ++i) {
+        if (mIouPrediction[i] > maxIou) {
+            maxIou = mIouPrediction[i];
+            bestMaskIndex = i;
+        }
+    }
+
     // Post-process the output mask
-    Mat imgMask(HIDDEN_DIM, HIDDEN_DIM, CV_32FC1, mLowResMasks);
+    Mat imgMask(HIDDEN_DIM, HIDDEN_DIM, CV_32FC1, mLowResMasks + bestMaskIndex * HIDDEN_DIM * HIDDEN_DIM);
     upscaleMask(imgMask, image.cols, image.rows); // Upscale to original image size
+
+    // Apply morphological cleanup exactly as in ONNX
+    cv::Mat finalMask;
+    cv::compare(imgMask, 0.5f, finalMask, cv::CMP_GT); // CV_8U 0/255
+
+    // Optional cleanup
+    int kernelSize = std::max(5, std::min(image.cols, image.rows) / 100);
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernelSize, kernelSize));
+    cv::morphologyEx(finalMask, finalMask, cv::MORPH_CLOSE, kernel);
+    cv::morphologyEx(finalMask, finalMask, cv::MORPH_OPEN, kernel);
+    cv::threshold(finalMask, finalMask, 127, 255, cv::THRESH_BINARY);
 
     delete[] pointData; // Clean up dynamically allocated memory for point data
 
-    return imgMask; // Return the segmented mask
+    return finalMask; // Return the segmented mask
 }
 
 void SpeedSam::prepareDecoderInput(vector<Point>& points, float* pointData, int numPoints, int imageWidth, int imageHeight)

@@ -347,11 +347,11 @@ void EngineTRT::setInput(Mat& image)
 
         for (int col = 0; col < image.cols; ++col)
         {
-            // Normalizing the pixel values for the RGB channels
-            // Convert the BGR image to normalized RGB and store in mCpuBuffers
-            mCpuBuffers[0][i] = ((float)uc_pixel[2] / 255.0f - 0.485f) / 0.229f; // Red channel
-            mCpuBuffers[0][i + image.rows * image.cols] = ((float)uc_pixel[1] / 255.0f - 0.456f) / 0.224f; // Green channel
-            mCpuBuffers[0][i + 2 * image.rows * image.cols] = ((float)uc_pixel[0] / 255.0f - 0.406f) / 0.225f; // Blue channel
+            // Normalizing the pixel values for the RGB channels matching ONNX (no ImageNet mean/std)
+            // The image was converted to BGR, so uc_pixel[2] is Red, uc_pixel[1] is Green, uc_pixel[0] is Blue
+            mCpuBuffers[0][i] = (float)uc_pixel[2] / 255.0f; // Red channel
+            mCpuBuffers[0][i + image.rows * image.cols] = (float)uc_pixel[1] / 255.0f; // Green channel
+            mCpuBuffers[0][i + 2 * image.rows * image.cols] = (float)uc_pixel[0] / 255.0f; // Blue channel
 
             uc_pixel += 3;  // Move to the next pixel
             ++i;  // Increment index

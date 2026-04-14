@@ -29,14 +29,14 @@ endif()
 set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
 set(SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR "")
 set(SAM_ONNX_ROS_TENSORRT_LIBRARIES "")
-set(SAM_ONNX_ROS_TENSORRT_ROOT "")
+set(SAM_ONNX_ROS_TENSORRT_ROOT "/home/amigo/TensorRT-10.16.1.11")
 
 if(SAM_ONNX_ROS_ENABLE_TENSORRT)
   if(NOT CUDAToolkit_FOUND)
     find_package(CUDAToolkit QUIET)
   endif()
 
-  set(SAM_ONNX_ROS_TENSORRT_HINTS "")
+  set(SAM_ONNX_ROS_TENSORRT_HINTS "/home/amigo/TensorRT-10.16.1.11")
   if(DEFINED ENV{TENSORRT_ROOT})
     set(SAM_ONNX_ROS_TENSORRT_ROOT "$ENV{TENSORRT_ROOT}")
     list(APPEND SAM_ONNX_ROS_TENSORRT_HINTS "$ENV{TENSORRT_ROOT}")
@@ -97,7 +97,7 @@ configure_file(include/${PROJECT_NAME}/config.hpp.in ${CATKIN_DEVEL_PREFIX}/${CA
 # ------------------------------------------------------------------------------------------------
 
 catkin_package(
-  INCLUDE_DIRS include ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+  INCLUDE_DIRS include sam_tensor_rt/include ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS onnxruntime_ros
   DEPENDS ${${PROJECT_NAME}_CUDA_CATKIN_DEPENDS} OpenCV console_bridge
@@ -130,28 +130,28 @@ target_link_libraries(${PROJECT_NAME}
   ${${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES}
 )
 
+if(SAM_ONNX_ROS_TENSORRT_ENABLED)
+  target_sources(${PROJECT_NAME}
+    PRIVATE
+      sam_tensor_rt/src/engineTRT.cpp
+      sam_tensor_rt/src/speedSam.cpp
+  )
+  target_include_directories(${PROJECT_NAME}
+    PUBLIC
+      sam_tensor_rt/include
+  )
+  target_include_directories(${PROJECT_NAME}
+    SYSTEM PRIVATE
+      ${SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR}
+  )
+  target_link_libraries(${PROJECT_NAME} ${SAM_ONNX_ROS_TENSORRT_LIBRARIES})
+endif()
+
 # Main executable links the core lib but its used for testing (the lib is used on ed sensor integration)
 add_executable(test_${PROJECT_NAME}
   src/main.cpp
 )
 target_link_libraries(test_${PROJECT_NAME} ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
-
-if(SAM_ONNX_ROS_TENSORRT_ENABLED)
-  target_sources(test_${PROJECT_NAME}
-    PRIVATE
-      sam_tensor_rt/src/engineTRT.cpp
-      sam_tensor_rt/src/speedSam.cpp
-  )
-  target_include_directories(test_${PROJECT_NAME}
-    PRIVATE
-      sam_tensor_rt/include
-  )
-  target_include_directories(test_${PROJECT_NAME}
-    SYSTEM PRIVATE
-      ${SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR}
-  )
-  target_link_libraries(test_${PROJECT_NAME} ${SAM_ONNX_ROS_TENSORRT_LIBRARIES})
-endif()
 
 set(SAM_ONNX_ROS_RESOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM)
 set(SAM_ONNX_ROS_LOCAL_MODEL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sam_tensor_rt/model)
