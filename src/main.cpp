@@ -21,6 +21,7 @@ enum class PromptMode
 {
     kBbox,
     kPoint,
+    kRoi,
 };
 
 bool IsSupportedImage(const std::filesystem::path& path)
@@ -78,14 +79,18 @@ PromptMode ParsePromptMode(const std::string& value)
     {
         return PromptMode::kPoint;
     }
+    if (value == "roi")
+    {
+        return PromptMode::kRoi;
+    }
 
-    throw std::invalid_argument("Unsupported prompt mode '" + value + "'. Use 'bbox' or 'point'.");
+    throw std::invalid_argument("Unsupported prompt mode '" + value + "'. Use 'bbox', 'point', or 'roi'.");
 }
 
 void PrintUsage(const char* executable)
 {
     std::cerr << "Usage: " << executable << " <encoder_model> <decoder_model> <image_or_dir> "
-              << "[--backend=onnx|speedsam] [--prompt=bbox|point]" << std::endl;
+              << "[--backend=onnx|speedsam] [--prompt=bbox|point|roi]" << std::endl;
 }
 
 int RunMain(const std::filesystem::path& encoder_name,
@@ -126,6 +131,19 @@ int RunMain(const std::filesystem::path& encoder_name,
         {
             res.boxes.push_back(cv::Rect(0, 0, std::max(img.cols - 1, 0), std::max(img.rows - 1, 0)));
         }
+        else if (prompt_mode == PromptMode::kRoi)
+        {
+            cv::namedWindow("Select ROI", cv::WINDOW_AUTOSIZE);
+            cv::Rect bbox = cv::selectROI("Select ROI", img, false, false);
+            cv::destroyWindow("Select ROI");
+
+            if (bbox.width == 0 || bbox.height == 0)
+            {
+                std::cerr << "No valid bounding box selected. Skipping image." << std::endl;
+                continue;
+            }
+            res.boxes.push_back(bbox);
+        }
         else
         {
             // Center point fallback logic if extended later
@@ -135,10 +153,9 @@ int RunMain(const std::filesystem::path& encoder_name,
         SegmentAnything(samWrapper, params_encoder, params_decoder, img, resSam, res);
 
         std::string modeStr = (backend == SEG::Backend::kSpeedSam) ? "speedsam" : "onnx";
-        const std::filesystem::path output_path =
-            image_path.parent_path() /
-            (image_path.stem().string() +
-             (prompt_mode == PromptMode::kBbox ? "_" + modeStr + "_bbox_mask.png" : "_" + modeStr + "_point_mask.png"));
+        std::string promptStr = (prompt_mode == PromptMode::kBbox) ? " Bbox prompt" :
+                                (prompt_mode == PromptMode::kRoi)  ? " ROI prompt" : " Point prompt";
+        std::string windowName = "SAM Result (" + modeStr + " -" + promptStr + ")";
 
         if (!resSam.empty() && !resSam.front().masks.empty())
         {
@@ -152,8 +169,12 @@ int RunMain(const std::filesystem::path& encoder_name,
                 cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
                 cv::drawContours(rendered, contours, -1, cv::Scalar(0, 255, 255), 2);
 
-                cv::imwrite(output_path.string(), rendered);
-                std::cout << "Saved output to " << output_path << std::endl;
+                cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+                cv::imshow(windowName, rendered);
+                std::cout << "Displaying result for " << image_path.filename() << "..." << std::endl;
+                std::cout << "Press any key on the image window to continue..." << std::endl;
+                cv::waitKey(0);
+                cv::destroyWindow(windowName);
             }
         }
 

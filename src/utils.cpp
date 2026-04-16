@@ -228,22 +228,6 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
 
         // Save mask
         result.masks.push_back(finalMask);
-
-        // Overlay for display on a copy (iImg is const)
-        #ifdef LOGGING
-        cv::Mat overlay = iImg.clone();
-        std::vector<std::vector<cv::Point>> contours;
-        cv::findContours(finalMask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-        cv::Mat colorMask = cv::Mat::zeros(overlay.size(), CV_8UC3);
-        colorMask.setTo(cv::Scalar(0, 200, 0), finalMask);
-        cv::addWeighted(overlay, 0.7, colorMask, 0.3, 0, overlay);
-        cv::drawContours(overlay, contours, -1, cv::Scalar(0, 255, 255), 2);
-
-        cv::imshow("SAM Segmentation", overlay);
-        cv::waitKey(0);
-        cv::destroyAllWindows();
-        #endif // LOGGING
     }
     else
     {

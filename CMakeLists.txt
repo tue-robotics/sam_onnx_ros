@@ -26,6 +26,7 @@ if(${PROJECT_NAME}_CUDA_ENABLED)
   set(${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES "CUDA::cudart")
 endif()
 
+# TODO: Enable TENSORT should be moved to another ROS package
 set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
 set(SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR "")
 set(SAM_ONNX_ROS_TENSORRT_LIBRARIES "")
@@ -153,29 +154,18 @@ add_executable(test_${PROJECT_NAME}
 )
 target_link_libraries(test_${PROJECT_NAME} ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
 
-set(SAM_ONNX_ROS_RESOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM)
-set(SAM_ONNX_ROS_LOCAL_MODEL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sam_tensor_rt/model)
-file(MAKE_DIRECTORY ${SAM_ONNX_ROS_RESOURCE_DIR})
 
-if(EXISTS ${SAM_ONNX_ROS_LOCAL_MODEL_DIR}/SAM_encoder.onnx)
-  file(COPY ${SAM_ONNX_ROS_LOCAL_MODEL_DIR}/SAM_encoder.onnx DESTINATION ${SAM_ONNX_ROS_RESOURCE_DIR})
-else()
-  file(
-    DOWNLOAD https://github.com/tue-robotics/${PROJECT_NAME}/releases/download/speed_SAM/SAM_encoder.onnx ${SAM_ONNX_ROS_RESOURCE_DIR}/SAM_encoder.onnx
-    EXPECTED_HASH "SHA256=d266fcdc9e4f0182b59946cd3cf1be331641f1d0d1de2415c4fd94e7a1c9cf0a"
-    SHOW_PROGRESS
-  )
-endif()
+file(
+  DOWNLOAD https://github.com/tue-robotics/${PROJECT_NAME}/releases/download/speed_SAM/SAM_encoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM/SAM_encoder.onnx
+  EXPECTED_HASH "SHA256=d266fcdc9e4f0182b59946cd3cf1be331641f1d0d1de2415c4fd94e7a1c9cf0a"
+  SHOW_PROGRESS
+)
+file(
+  DOWNLOAD https://github.com/tue-robotics/${PROJECT_NAME}/releases/download/speed_SAM/SAM_mask_decoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM/SAM_mask_decoder.onnx
+  EXPECTED_HASH "SHA256=73b7c7bbe1ac78ada6f9534dfec5d4c31791fe8e57d552fa878c993020fae528"
+  SHOW_PROGRESS
+)
 
-if(EXISTS ${SAM_ONNX_ROS_LOCAL_MODEL_DIR}/SAM_mask_decoder.onnx)
-  file(COPY ${SAM_ONNX_ROS_LOCAL_MODEL_DIR}/SAM_mask_decoder.onnx DESTINATION ${SAM_ONNX_ROS_RESOURCE_DIR})
-else()
-  file(
-    DOWNLOAD https://github.com/tue-robotics/${PROJECT_NAME}/releases/download/speed_SAM/SAM_mask_decoder.onnx ${SAM_ONNX_ROS_RESOURCE_DIR}/SAM_mask_decoder.onnx
-    EXPECTED_HASH "SHA256=73b7c7bbe1ac78ada6f9534dfec5d4c31791fe8e57d552fa878c993020fae528"
-    SHOW_PROGRESS
-  )
-endif()
 
 # ------------------------------------------------------------------------------------------------
 #                                               INSTALL
@@ -214,31 +204,27 @@ install(
 #                                           Testing
 # ------------------------------------------------------------------------------------------------
 if (CATKIN_ENABLE_TESTING)
-  if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
-    message(WARNING "Skipping tests because catkin's bundled googletest is not compatible with CMake ${CMAKE_VERSION}.")
-  else()
-    find_package(catkin_lint_cmake REQUIRED)
-    catkin_add_catkin_lint_test("-W2 --ignore EXTERNAL_DIRECTORY --ignore EXTERNAL_FILE --ignore EXTERNAL_INCLUDE_PATH --ignore HEADER_OUTSIDE_PACKAGE_INCLUDE_PATH --ignore MISSING_DIRECTORY")
+  # find_package(catkin_lint_cmake REQUIRED)
+  # catkin_add_catkin_lint_test("-W2 --ignore EXTERNAL_DIRECTORY --ignore EXTERNAL_FILE --ignore EXTERNAL_INCLUDE_PATH --ignore HEADER_OUTSIDE_PACKAGE_INCLUDE_PATH --ignore MISSING_DIRECTORY")
 
-    # Utils unit tests (no models needed)
-    catkin_add_gtest(utils_tests test/test_utils.cpp)
-    if(TARGET utils_tests)
-      target_link_libraries(
-        utils_tests
-        ${PROJECT_NAME}
-        ${catkin_LIBRARIES}
-        )
-    endif()
-
-    # SAM integration-ish tests (may need models)
-    catkin_add_gtest(sam_tests test/sam_test.cpp WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM")
-    if(TARGET sam_tests)
-      target_link_libraries(
-        sam_tests
-        ${PROJECT_NAME}
-        ${OpenCV_LIBRARIES}
-        ${catkin_LIBRARIES}
+  # Utils unit tests (no models needed)
+  catkin_add_gtest(utils_tests test/test_utils.cpp)
+  if(TARGET utils_tests)
+    target_link_libraries(
+      utils_tests
+      ${PROJECT_NAME}
+      ${catkin_LIBRARIES}
       )
-    endif()
+  endif()
+
+  # SAM integration-ish tests (may need models)
+  catkin_add_gtest(sam_tests test/sam_test.cpp WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM")
+  if(TARGET sam_tests)
+    target_link_libraries(
+      sam_tests
+      ${PROJECT_NAME}
+      ${OpenCV_LIBRARIES}
+      ${catkin_LIBRARIES}
+    )
   endif()
 endif()

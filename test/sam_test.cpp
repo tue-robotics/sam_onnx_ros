@@ -30,18 +30,23 @@ protected:
         NonSquareImgSize = { testImage_800x600.cols, testImage_800x600.rows };
 
         // Use package helpers to build default params and SAM objects.
-        std::tie(samSegmentors, params_encoder, params_decoder, res, resSam) = Initialize("./SAM_encoder.onnx", "./SAM_mask_decoder.onnx");
+        std::tie(samWrapper, params_encoder, params_decoder, res, resSam) = Initialize("./SAM_encoder.onnx", "./SAM_mask_decoder.onnx", SEG::Backend::kOnnx);
 
     }
 
     // Clean up the SAM objects after each test.
-    void TearDown() override { samSegmentors[0].reset(); samSegmentors[1].reset(); }
+    void TearDown() override {
+        samWrapper.samSegmentors.clear();
+#if SAM_ONNX_ROS_TENSORRT_ENABLED
+        samWrapper.speedSam.reset();
+#endif
+    }
 
     // Test data and objects shared across tests.
     Utils utilities;
     cv::Mat testImage_640x640, testImage_800x600, testImage_realistic;
     std::vector<int> NonSquareImgSize;
-    std::vector<std::unique_ptr<SAM>> samSegmentors;
+    SamWrapper samWrapper;
     SEG::DL_INIT_PARAM params_encoder, params_decoder;
     SEG::DL_RESULT res;
     std::vector<SEG::DL_RESULT> resSam;
@@ -64,14 +69,17 @@ TEST_F(SamInferenceTest, CreateSessionWithValidModel)
         GTEST_SKIP() << "Model not found in build dir";
     }
 
-    EXPECT_NE(samSegmentors[0], nullptr) << "CreateSession should succeed with valid parameters";
+    EXPECT_GT(samWrapper.samSegmentors.size(), 0) << "CreateSession should succeed with valid parameters";
 }
 
 // Confirms that giving an invalid model path returns an error (no crash).
 TEST_F(SamInferenceTest, CreateSessionWithInvalidModel)
 {
     params_encoder.modelPath = "nonexistent_model.onnx";
-    EXPECT_THROW(samSegmentors[0]->CreateSession(params_encoder), std::runtime_error)
+    if (samWrapper.samSegmentors.empty()) {
+        samWrapper.samSegmentors.push_back(std::make_unique<SAM>());
+    }
+    EXPECT_THROW(samWrapper.samSegmentors[0]->CreateSession(params_encoder), std::runtime_error)
         << "CreateSession should throw an exception with invalid model path";
 }
 
@@ -84,7 +92,7 @@ TEST_F(SamInferenceTest, FullInferencePipeline)
         GTEST_SKIP() << "Models not found in build dir";
     }
 
-    SegmentAnything(samSegmentors, params_encoder, params_decoder, testImage_realistic, resSam, res);
+    SegmentAnything(samWrapper, params_encoder, params_decoder, testImage_realistic, resSam, res);
 }
 
 // Run all tests

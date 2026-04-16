@@ -7,7 +7,6 @@
 #include <regex>
 
 #define benchmark
-// #define ROI
 
 SAM::SAM()
 {
@@ -221,35 +220,12 @@ const char* SAM::TensorProcess_(clock_t& starttime_1, const cv::Mat& iImg,
             // Create tensor for decoder
             std::vector<int64_t> decoderInputDims = {1, 256, 64, 64}; // Adjust based on your decoder's requirements
 
-            // Create point coordinates for testing purposes
-            #ifdef ROI
-            // Create a window for user interaction
-            namedWindow("Select and View Result", cv::WINDOW_AUTOSIZE);
-
-            // Let the user select the bounding box
-            cv::Rect bbox = selectROI("Select and View Result", iImg, false, false);
-
-            // Check if a valid bounding box was selected
-            if (bbox.width == 0 || bbox.height == 0)
-            {
-              CONSOLE_BRIDGE_logError("No valid bounding box selected.");
-              return "[SAM]: NO valid Box.";
-            }
-
-            std::vector<cv::Rect> boundingBoxes;
-            boundingBoxes.push_back(bbox);
-            #endif // ROI
-
             #ifdef benchmark
             clock_t starttime_2 = 0;
             clock_t starttime_3 = 0;
             #endif // benchmark
 
-            #ifdef ROI
-            for (const auto& box : boundingBoxes)
-            #else
             for (const auto& box : result.boxes)
-            #endif // ROI
             {
                 Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
                     Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),

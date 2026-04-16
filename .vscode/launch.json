@@ -6,11 +6,15 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "/home/amigo/ros/noetic/system/devel/lib/sam_onnx_ros/test_sam_onnx_ros", // Path to the executable
-            "args": ["/home/amigo/Documents/repos/hero_sam.bak/sam_inference/model/SAM_encoder.onnx",
+            "args": [
+                "/home/amigo/Documents/repos/hero_sam.bak/sam_inference/model/SAM_encoder.onnx",
                 "/home/amigo/Documents/repos/hero_sam.bak/sam_inference/model/SAM_mask_decoder.onnx",
-                "/home/amigo/Documents/repos/hero_sam.bak/pipeline/build/images"], // Add any command-line arguments for your program here
+                "/home/amigo/Documents/repos/hero_sam.bak/pipeline/build/images1",
+                "--backend=speedsam",
+                "--prompt=roi"
+            ], // Add any command-line arguments for your program here
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/build", // Set the working directory
+            "cwd": "${workspaceFolder}", // Set the working directory
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
