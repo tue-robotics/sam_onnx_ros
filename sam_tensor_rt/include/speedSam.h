@@ -32,6 +32,16 @@ public:
     /// \return A matrix containing the predicted masks.
     Mat predict(Mat& image, std::vector<Point> points, std::vector<float> labels);
 
+    /// \brief Encodes the image once (Heavy operation).
+    /// \param image The input image for prediction.
+    void setTemplateImage(Mat& image);
+
+    /// \brief Predicts a mask from a pre-encoded image (Light operation).
+    /// \param points The points used for mask prediction.
+    /// \param labels The labels associated with the points.
+    /// \return A matrix containing the predicted masks.
+    Mat predictFromTemplate(std::vector<Point> points, std::vector<float> labels);
+
 private:
     // Variables
     float* mFeatures;        ///< Pointer to the feature data.
@@ -39,6 +49,9 @@ private:
     float* mHasMaskInput;   ///< Pointer to the mask existence input data.
     float* mIouPrediction;   ///< Pointer to the IoU prediction data.
     float* mLowResMasks;     ///< Pointer to the low-resolution masks.
+
+    int mCachedImgCols = 0;
+    int mCachedImgRows = 0;
 
     EngineTRT* mImageEncoder;  ///< Pointer to the image encoder module.
     EngineTRT* mMaskDecoder;    ///< Pointer to the mask decoder module.

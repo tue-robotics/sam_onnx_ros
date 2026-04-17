@@ -38,11 +38,8 @@ SpeedSam::~SpeedSam()
     if (mMaskDecoder)   delete mMaskDecoder;
 }
 
-Mat SpeedSam::predict(Mat& image, vector<Point> points, vector<float> labels)
+void SpeedSam::setTemplateImage(Mat& image)
 {
-    // If no points are provided, return an empty mask
-    if (points.size() == 0) return cv::Mat(image.rows, image.cols, CV_32FC1);
-
     // Preprocess the input image for the encoder
     auto resizedImage = resizeImage(image, MODEL_INPUT_WIDTH, MODEL_INPUT_HEIGHT);
 
@@ -51,9 +48,19 @@ Mat SpeedSam::predict(Mat& image, vector<Point> points, vector<float> labels)
     mImageEncoder->infer();
     mImageEncoder->getOutput(mFeatures);
 
+    // Cache the original dimensions for the decoder upscaling
+    mCachedImgCols = image.cols;
+    mCachedImgRows = image.rows;
+}
+
+Mat SpeedSam::predictFromTemplate(vector<Point> points, vector<float> labels)
+{
+    // If no points are provided, return an empty mask
+    if (points.size() == 0) return cv::Mat(mCachedImgRows, mCachedImgCols, CV_32FC1);
+
     // Prepare decoder input data for the specified points
     auto pointData = new float[2 * points.size()]; // Array to hold scaled point coordinates
-    prepareDecoderInput(points, pointData, points.size(), image.cols, image.rows);
+    prepareDecoderInput(points, pointData, points.size(), mCachedImgCols, mCachedImgRows);
 
     // Perform inference with the mask decoder
     mMaskDecoder->setInput(mFeatures, pointData, labels.data(), mMaskInput, mHasMaskInput, points.size());
@@ -72,14 +79,14 @@ Mat SpeedSam::predict(Mat& image, vector<Point> points, vector<float> labels)
 
     // Post-process the output mask
     Mat imgMask(HIDDEN_DIM, HIDDEN_DIM, CV_32FC1, mLowResMasks + bestMaskIndex * HIDDEN_DIM * HIDDEN_DIM);
-    upscaleMask(imgMask, image.cols, image.rows); // Upscale to original image size
+    upscaleMask(imgMask, mCachedImgCols, mCachedImgRows); // Upscale to original image size
 
     // Apply morphological cleanup exactly as in ONNX
     cv::Mat finalMask;
     cv::compare(imgMask, 0.5f, finalMask, cv::CMP_GT); // CV_8U 0/255
 
     // Optional cleanup
-    int kernelSize = std::max(5, std::min(image.cols, image.rows) / 100);
+    int kernelSize = std::max(5, std::min(mCachedImgCols, mCachedImgRows) / 100);
     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernelSize, kernelSize));
     cv::morphologyEx(finalMask, finalMask, cv::MORPH_CLOSE, kernel);
     cv::morphologyEx(finalMask, finalMask, cv::MORPH_OPEN, kernel);
@@ -88,6 +95,12 @@ Mat SpeedSam::predict(Mat& image, vector<Point> points, vector<float> labels)
     delete[] pointData; // Clean up dynamically allocated memory for point data
 
     return finalMask; // Return the segmented mask
+}
+
+Mat SpeedSam::predict(Mat& image, vector<Point> points, vector<float> labels)
+{
+    setTemplateImage(image);
+    return predictFromTemplate(points, labels);
 }
 
 void SpeedSam::prepareDecoderInput(vector<Point>& points, float* pointData, int numPoints, int imageWidth, int imageHeight)

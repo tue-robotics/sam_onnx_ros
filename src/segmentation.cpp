@@ -10,8 +10,8 @@ std::tuple<
 >
 Initialize(const std::filesystem::path& encoder_filename, const std::filesystem::path& decoder_filename, SEG::Backend backend)
 {
-    SamWrapper wrapper;
-    wrapper.backend = backend;
+    SamWrapper samWrapper;
+    samWrapper.backend = backend;
 
     SEG::DL_INIT_PARAM params_encoder;
     SEG::DL_INIT_PARAM params_decoder;
@@ -40,13 +40,13 @@ Initialize(const std::filesystem::path& encoder_filename, const std::filesystem:
         samSegmentorEncoder->CreateSession(params_encoder);
         samSegmentorDecoder->CreateSession(params_decoder);
 
-        wrapper.samSegmentors.push_back(std::move(samSegmentorEncoder));
-        wrapper.samSegmentors.push_back(std::move(samSegmentorDecoder));
+        samWrapper.samSegmentors.push_back(std::move(samSegmentorEncoder));
+        samWrapper.samSegmentors.push_back(std::move(samSegmentorDecoder));
     }
 #if SAM_ONNX_ROS_TENSORRT_ENABLED
     else if (backend == SEG::Backend::kSpeedSam)
     {
-        wrapper.speedSam = std::make_unique<SpeedSam>(encoder_filename.string(), decoder_filename.string());
+        samWrapper.speedSam = std::make_unique<SpeedSam>(encoder_filename.string(), decoder_filename.string());
     }
 #else
     else if (backend == SEG::Backend::kSpeedSam)
@@ -55,36 +55,34 @@ Initialize(const std::filesystem::path& encoder_filename, const std::filesystem:
     }
 #endif
 
-    return {std::move(wrapper), params_encoder, params_decoder, res, resSam};
+    return {std::move(samWrapper), params_encoder, params_decoder, res, resSam};
 }
 
-void SegmentAnything(SamWrapper& wrapper,
+void SegmentAnything(SamWrapper& samWrapper,
                      const SEG::DL_INIT_PARAM& params_encoder,
                      const SEG::DL_INIT_PARAM& params_decoder,
                      const cv::Mat& img,
                      std::vector<SEG::DL_RESULT>& resSam,
                      SEG::DL_RESULT& res)
 {
-    if (wrapper.backend == SEG::Backend::kOnnx)
+    if (samWrapper.backend == SEG::Backend::kOnnx)
     {
         SEG::MODEL_TYPE modelTypeRef = params_encoder.modelType;
-        wrapper.samSegmentors[0]->RunSession(img, resSam, modelTypeRef, res);
+        samWrapper.samSegmentors[0]->RunSession(img, resSam, modelTypeRef, res);
 
         modelTypeRef = params_decoder.modelType;
-        wrapper.samSegmentors[1]->RunSession(img, resSam, modelTypeRef, res);
+        samWrapper.samSegmentors[1]->RunSession(img, resSam, modelTypeRef, res);
     }
 #if SAM_ONNX_ROS_TENSORRT_ENABLED
-    else if (wrapper.backend == SEG::Backend::kSpeedSam)
+    else if (samWrapper.backend == SEG::Backend::kSpeedSam)
     {
         // Mimic the exact behaviour of Onnx Pipeline: encode then decode per box.
         // It outputs masks bounding boxes inside resSam.
-        // For SpeedSam, we just loop over `res.boxes` and push output into `resSam[0]`.
+        // For SpeedSam, we encode the image once, then we just loop over `res.boxes` and push output into `resSam[0]`.
 
-        // Let's create an empty result object.
-        SEG::DL_RESULT result;
+        res.masks.clear();
 
-        // Populate embeddings dummy length since ONNX outputs 256*64*64 size dummy vector
-        result.embeddings = std::vector<float>(256 * 64 * 64, 0.0f);
+        samWrapper.speedSam->setTemplateImage(const_cast<cv::Mat&>(img));
 
         for (const auto& box : res.boxes)
         {
@@ -92,15 +90,14 @@ void SegmentAnything(SamWrapper& wrapper,
                 cv::Point(box.x, box.y),
                 cv::Point(box.x + box.width, box.y + box.height)
             };
-            cv::Mat mask = wrapper.speedSam->predict(const_cast<cv::Mat&>(img), bboxPoints, {2.0f, 3.0f});
+            cv::Mat mask = samWrapper.speedSam->predictFromTemplate(bboxPoints, {2.0f, 3.0f});
 
-            result.masks.push_back(mask);
-            result.boxes.push_back(box);
+            res.masks.push_back(mask);
         }
-        resSam.push_back(result);
+        resSam.push_back(res);
     }
 #else
-    else if (wrapper.backend == SEG::Backend::kSpeedSam)
+    else if (samWrapper.backend == SEG::Backend::kSpeedSam)
     {
         // Fail loudly rather than doing 0ms silent returns
         throw std::runtime_error("[ERROR] SegmentAnything: backend 'speedsam' was requested, but 'sam_onnx_ros' was compiled WITHOUT TensorRT! Please install TensorRT headers and rebuild.");

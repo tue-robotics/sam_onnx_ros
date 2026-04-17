@@ -24,6 +24,8 @@ enum class PromptMode
     kRoi,
 };
 
+// #define LOGGING
+
 bool IsSupportedImage(const std::filesystem::path& path)
 {
     const std::string extension = path.extension().string();
@@ -123,14 +125,16 @@ int RunMain(const std::filesystem::path& encoder_name,
             continue;
         }
 
-        // Just populate dummy boxes for decoder as if given by an Object detection Node
+
         res.boxes.clear();
         resSam.clear();
 
+        // Populate dummy boxes for decoder as if given by an Object detection Node
         if (prompt_mode == PromptMode::kBbox)
         {
             res.boxes.push_back(cv::Rect(0, 0, std::max(img.cols - 1, 0), std::max(img.rows - 1, 0)));
         }
+        // Or let the user specify a region of interest (ROI)
         else if (prompt_mode == PromptMode::kRoi)
         {
             cv::namedWindow("Select ROI", cv::WINDOW_AUTOSIZE);

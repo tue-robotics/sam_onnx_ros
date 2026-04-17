@@ -2,8 +2,6 @@
 
 #include <console_bridge/console.h>
 
-// #define LOGGING
-
 // Constructor
 Utils::Utils()
 {
