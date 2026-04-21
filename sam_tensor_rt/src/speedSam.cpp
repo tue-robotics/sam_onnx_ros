@@ -18,8 +18,8 @@ SpeedSam::SpeedSam(string encoderPath, string decoderPath)
         true,                               // Using dynamic shape
         false);                             // Not using FP16 precision
 
-    // Allocate memory for model features and inputs
-    mFeatures = new float[HIDDEN_DIM * FEATURE_WIDTH * FEATURE_HEIGHT];
+    // We don't allocate mFeatures anymore because we use zero-copy GPU memory passing
+    mFeatures = nullptr;
     mMaskInput = new float[HIDDEN_DIM * HIDDEN_DIM];
     mHasMaskInput = new float;             // Pointer for mask input presence
     mIouPrediction = new float[NUM_LABELS]; // IOU prediction output
@@ -46,7 +46,16 @@ void SpeedSam::setTemplateImage(Mat& image)
     // Perform inference with the image encoder
     mImageEncoder->setInput(resizedImage);
     mImageEncoder->infer();
-    mImageEncoder->getOutput(mFeatures);
+    // We intentionally DO NOT call copyOutputToHostAsync for embeddings.
+
+    // Retrieve the raw device pointer from the Encoder's output buffer and pass it to the Decoder's input buffer.
+    void* gpuEmbeddings = mImageEncoder->getDevicePtr("image_embeddings");
+
+    // Prevent the Encoder from unnecessarily downloading this 4MB chunk back to the CPU via PCIe
+    mImageEncoder->setDevicePtr("image_embeddings", gpuEmbeddings);
+
+    // Prevent the Decoder from unnecessarily uploading the 4MB chunk from the CPU back to the GPU
+    mMaskDecoder->setDevicePtr("image_embeddings", gpuEmbeddings);
 
     // Cache the original dimensions for the decoder upscaling
     mCachedImgCols = image.cols;

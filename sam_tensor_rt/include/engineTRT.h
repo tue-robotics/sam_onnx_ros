@@ -12,7 +12,7 @@ using namespace cv;
 /// \class TRTModule
 /// \brief A class for handling TensorRT model inference.
 ///
-/// This class manages loading, setting inputs, and executing inference 
+/// This class manages loading, setting inputs, and executing inference
 /// for a TensorRT model. It provides methods for setting input data,
 /// retrieving output predictions, and handling both static and dynamic shapes.
 ///
@@ -23,7 +23,7 @@ class EngineTRT
 
 public:
     /// \brief Constructor for the TRTModule class.
-    /// 
+    ///
     /// \param modelPath Path to the ONNX model file.
     /// \param inputNames Names of the input tensors.
     /// \param outputNames Names of the output tensors.
@@ -36,12 +36,12 @@ public:
     bool infer();
 
     /// \brief Sets the input image for inference.
-    /// 
+    ///
     /// \param image The input image to be processed.
     void setInput(Mat& image);
 
     /// \brief Sets multiple inputs for inference from raw data.
-    /// 
+    ///
     /// \param features Pointer to feature data.
     /// \param imagePointCoords Pointer to image point coordinates.
     /// \param imagePointLabels Pointer to image point labels.
@@ -51,22 +51,28 @@ public:
     void setInput(float* features, float* imagePointCoords, float* imagePointLabels, float* maskInput, float* hasMaskInput, int numPoints);
 
     /// \brief Retrieves the output predictions for IoU and low-resolution masks.
-    /// 
+    ///
     /// \param iouPrediction Pointer to store IoU prediction output.
     /// \param lowResolutionMasks Pointer to store low-resolution mask output.
     void getOutput(float* iouPrediction, float* lowResolutionMasks);
 
     /// \brief Retrieves the output features from inference.
-    /// 
+    ///
     /// \param features Pointer to store output features.
     void getOutput(float* features);
+
+    /// \brief Returns the raw GPU pointer for a specific tensor.
+    void* getDevicePtr(const std::string& tensorName) const;
+
+    /// \brief Binds a tensor directly to a pre-existing GPU memory pointer (zero-copy) and skips CPU synchronization.
+    void setDevicePtr(const std::string& tensorName, void* devicePtr);
 
     /// \brief Destructor for the TRTModule class.
     ~EngineTRT();
 
 private:
     /// \brief Builds the TensorRT engine from an ONNX model.
-    /// 
+    ///
     /// \param onnxPath Path to the ONNX model file.
     /// \param inputNames Names of the input tensors.
     /// \param outputNames Names of the output tensors.
@@ -77,26 +83,26 @@ private:
     void saveEngine(const std::string& engineFilePath);
 
     /// \brief Deserializes the engine from a file.
-    /// 
+    ///
     /// \param engineName Name of the engine file.
     /// \param inputNames Names of the input tensors.
     /// \param outputNames Names of the output tensors.
     void deserializeEngine(string engineName, vector<string> inputNames, vector<string> outputNames);
 
     /// \brief Initializes the TensorRT module with input and output names.
-    /// 
+    ///
     /// \param inputNames Names of the input tensors.
     /// \param outputNames Names of the output tensors.
     void initialize(vector<string> inputNames, vector<string> outputNames);
 
     /// \brief Gets the size of a buffer based on its dimensions.
-    /// 
+    ///
     /// \param dims The dimensions of the buffer.
     /// \return The size in bytes of the buffer.
     size_t getSizeByDim(const Dims& dims);
 
     /// \brief Copies buffers between device and host memory.
-    /// 
+    ///
     /// \param copyInput Indicates whether to copy input data.
     /// \param deviceToHost Indicates the direction of the copy.
     /// \param async Indicates whether the copy should be asynchronous.
@@ -104,12 +110,12 @@ private:
     void memcpyBuffers(const bool copyInput, const bool deviceToHost, const bool async, const cudaStream_t& stream = 0);
 
     /// \brief Asynchronously copies input data to the device.
-    /// 
+    ///
     /// \param stream The CUDA stream to use for the copy operation.
     void copyInputToDeviceAsync(const cudaStream_t& stream = 0);
 
     /// \brief Asynchronously copies output data from the device to host.
-    /// 
+    ///
     /// \param stream The CUDA stream to use for the copy operation.
     void copyOutputToHostAsync(const cudaStream_t& stream = 0);
 
@@ -121,6 +127,7 @@ private:
     vector<float*> mCpuBuffers;         //!< The vector of CPU buffers for input/output.
     vector<size_t> mBufferBindingBytes; //!< The sizes in bytes of each buffer binding.
     vector<size_t> mBufferBindingSizes; //!< The sizes of the buffer bindings.
+    vector<bool> mSkipCpuMemcpy;        //!< Indicates if a tensor is bound externally, skipping PCIe transfer.
     cudaStream_t mCudaStream;           //!< The CUDA stream used for asynchronous operations.
 
     IRuntime* mRuntime;                 //!< The TensorRT runtime used to deserialize the engine.

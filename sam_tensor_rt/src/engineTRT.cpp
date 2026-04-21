@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include <NvOnnxParser.h>
+#include <opencv2/dnn.hpp>
 #include <cuda_runtime_api.h>
 
 static Logger gLogger;
@@ -206,6 +207,7 @@ void EngineTRT::initialize(vector<string> inputNames, vector<string> outputNames
     mOutputDims.clear();
     mGpuBuffers.resize(nbTensors, nullptr);
     mCpuBuffers.resize(nbTensors, nullptr);
+    mSkipCpuMemcpy.resize(nbTensors, false);
     mBufferBindingBytes.clear();
     mBufferBindingSizes.clear();
 
@@ -292,6 +294,9 @@ void EngineTRT::memcpyBuffers(const bool copyInput, const bool deviceToHost, con
     // Loop through all bindings (inputs and outputs) in the TensorRT engine.
     for (size_t i = 0; i < mTensorNames.size(); ++i)
     {
+        // Skip memory copy for buffers that are externally bound (zero-copy PCIe optimization)
+        if (mSkipCpuMemcpy[i]) continue;
+
         // Determine the destination and source pointers based on the copy direction.
         void* dstPtr = deviceToHost ? mCpuBuffers[i] : mGpuBuffers[i];
         const void* srcPtr = deviceToHost ? mGpuBuffers[i] : mCpuBuffers[i];
@@ -337,26 +342,12 @@ size_t EngineTRT::getSizeByDim(const Dims& dims)
 
 void EngineTRT::setInput(Mat& image)
 {
-    int i = 0;  // Index counter for buffer placement
+    // Fast, SIMD-vectorized OpenCV normalization and HWC->CHW planar transposition.
+    // Scales by 1/255.0 and swaps BGR to RGB channel order.
+    cv::Mat blob = cv::dnn::blobFromImage(image, 1.0 / 255.0, cv::Size(), cv::Scalar(), true, false);
 
-    // Iterate over each pixel in the input image
-    for (int row = 0; row < image.rows; ++row)
-    {
-        // Pointer to the start of the row in the image data
-        uchar* uc_pixel = image.data + row * image.step;
-
-        for (int col = 0; col < image.cols; ++col)
-        {
-            // Normalizing the pixel values for the RGB channels matching ONNX (no ImageNet mean/std)
-            // The image was converted to BGR, so uc_pixel[2] is Red, uc_pixel[1] is Green, uc_pixel[0] is Blue
-            mCpuBuffers[0][i] = (float)uc_pixel[2] / 255.0f; // Red channel
-            mCpuBuffers[0][i + image.rows * image.cols] = (float)uc_pixel[1] / 255.0f; // Green channel
-            mCpuBuffers[0][i + 2 * image.rows * image.cols] = (float)uc_pixel[0] / 255.0f; // Blue channel
-
-            uc_pixel += 3;  // Move to the next pixel
-            ++i;  // Increment index
-        }
-    }
+    // Copy the continuous memory blob directly directly to the TensorRT input buffer
+    memcpy(mCpuBuffers[0], blob.ptr<float>(), blob.total() * sizeof(float));
 }
 
 void EngineTRT::setInput(float* features, float* imagePointCoords, float* imagePointLabels, float* maskInput, float* hasMaskInput, int numPoints)
@@ -364,35 +355,31 @@ void EngineTRT::setInput(float* features, float* imagePointCoords, float* imageP
     const size_t coordsIdx = getTensorIndex(mInputNames[1]);
     const size_t labelsIdx = getTensorIndex(mInputNames[2]);
 
-    // Clean up old buffers and allocate new buffers for the input data
-    delete[] mCpuBuffers[coordsIdx];
-    delete[] mCpuBuffers[labelsIdx];
-    if (mGpuBuffers[coordsIdx])
-        CUDA_CHECK(cudaFree(mGpuBuffers[coordsIdx]));
-    if (mGpuBuffers[labelsIdx])
-        CUDA_CHECK(cudaFree(mGpuBuffers[labelsIdx]));
-    mCpuBuffers[coordsIdx] = new float[numPoints * 2];  // Buffer for point coordinates
-    mCpuBuffers[labelsIdx] = new float[numPoints];      // Buffer for point labels
+    // We do NOT delete and malloc here anymore.
+    // mCpuBuffers and mGpuBuffers were already allocated during build()->initialize()
+    // to Dims3{1, 10, 2} which encompasses (MAX_NUM_PROMPTS * 2 * sizeof(float)).
+    // Reallocating per frame causes massive PCIe stalling.
 
-    // Allocate memory on the GPU for the input data
-    CUDA_CHECK(cudaMalloc(&mGpuBuffers[coordsIdx], sizeof(float) * numPoints * 2)); // Coordinates
-    CUDA_CHECK(cudaMalloc(&mGpuBuffers[labelsIdx], sizeof(float) * numPoints));     // Labels
-
-    // Set the size of the data binding in bytes for TensorRT
+    // Calculate how many bytes we need specifically for THIS prompt size so we don't
+    // copy zeroes or garbage data to the GPU unnecessarily.
     mBufferBindingBytes[coordsIdx] = sizeof(float) * numPoints * 2;
     mBufferBindingBytes[labelsIdx] = sizeof(float) * numPoints;
 
-    // Copy input data into CPU buffers
-    memcpy(mCpuBuffers[getTensorIndex(mInputNames[0])], features, mBufferBindingBytes[getTensorIndex(mInputNames[0])]);
+    // Copy input data into pre-allocated CPU buffers
+    // We strictly skip copying 'features' because it's bound via Zero-Copy Device Pointers.
+    if (features != nullptr && !mSkipCpuMemcpy[getTensorIndex(mInputNames[0])]) {
+        memcpy(mCpuBuffers[getTensorIndex(mInputNames[0])], features, mBufferBindingBytes[getTensorIndex(mInputNames[0])]);
+    }
+
     memcpy(mCpuBuffers[coordsIdx], imagePointCoords, sizeof(float) * numPoints * 2);
     memcpy(mCpuBuffers[labelsIdx], imagePointLabels, sizeof(float) * numPoints);
     memcpy(mCpuBuffers[getTensorIndex(mInputNames[3])], maskInput, mBufferBindingBytes[getTensorIndex(mInputNames[3])]);
     memcpy(mCpuBuffers[getTensorIndex(mInputNames[4])], hasMaskInput, mBufferBindingBytes[getTensorIndex(mInputNames[4])]);
 
-    // Configure TensorRT to use a dynamic input shape
-    mContext->setOptimizationProfileAsync(0, mCudaStream); // Set the optimization profile
-    mContext->setInputShape(mInputNames[1].c_str(), Dims3{ 1, numPoints, 2 }); // Set input dimensions for coordinates
-    mContext->setInputShape(mInputNames[2].c_str(), Dims2{ 1, numPoints });    // Set input dimensions for labels
+    // Configure TensorRT to use a dynamic input shape targeting the exact subset of the buffer we populated
+    mContext->setOptimizationProfileAsync(0, mCudaStream);
+    mContext->setInputShape(mInputNames[1].c_str(), Dims3{ 1, numPoints, 2 });
+    mContext->setInputShape(mInputNames[2].c_str(), Dims2{ 1, numPoints });
     mContext->setTensorAddress(mInputNames[1].c_str(), mGpuBuffers[coordsIdx]);
     mContext->setTensorAddress(mInputNames[2].c_str(), mGpuBuffers[labelsIdx]);
 }
@@ -424,4 +411,23 @@ size_t EngineTRT::getTensorIndex(const std::string& tensorName) const
     }
 
     throw std::runtime_error("Tensor not found in engine: " + tensorName);
+}
+
+void* EngineTRT::getDevicePtr(const std::string& tensorName) const
+{
+    return mGpuBuffers[getTensorIndex(tensorName)];
+}
+
+void EngineTRT::setDevicePtr(const std::string& tensorName, void* devicePtr)
+{
+    size_t idx = getTensorIndex(tensorName);
+
+    // We do NOT free the existing mGpuBuffers[idx] if we own it, because it was allocated
+    // at initialization. But to link it safely without memory leaks, we can just switch the context pointer.
+    // However, we probably don't want to lose track of our original cudaMalloc if we ever restart.
+    // For now, we will simply point TensorRT to the new external address.
+    mContext->setTensorAddress(tensorName.c_str(), devicePtr);
+
+    // Mark it so we completely skip PCIe copying over this buffer.
+    mSkipCpuMemcpy[idx] = true;
 }

@@ -11,7 +11,7 @@
 
 #define USE_FP16  ///< Set to use FP16 (float16) precision, or comment to use FP32 (float32) precision.
 
-#define MAX_NUM_PROMPTS  1  ///< Maximum number of prompts to be processed at once.
+#define MAX_NUM_PROMPTS  10  ///< Maximum number of prompts to be processed at once.
 
 // Model Params
 #define MODEL_INPUT_WIDTH  1024.0f  ///< Width of the model input in pixels.
