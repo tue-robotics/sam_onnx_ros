@@ -14,6 +14,7 @@ find_package(OpenCV REQUIRED)
 find_package(catkin REQUIRED
   COMPONENTS
   onnxruntime_ros
+  tensorrt_ros
 )
 
 option(SAM_ONNX_ROS_ENABLE_TENSORRT "Build the optional SpeedSAM/TensorRT backend when TensorRT is available" ON)
@@ -26,69 +27,10 @@ if(${PROJECT_NAME}_CUDA_ENABLED)
   set(${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES "CUDA::cudart")
 endif()
 
-# TODO: Enable TENSORT should be moved to another ROS package
-set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
-set(SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR "")
-set(SAM_ONNX_ROS_TENSORRT_LIBRARIES "")
-set(SAM_ONNX_ROS_TENSORRT_ROOT "/home/amigo/TensorRT-10.16.1.11")
-
 if(SAM_ONNX_ROS_ENABLE_TENSORRT)
-  if(NOT CUDAToolkit_FOUND)
-    find_package(CUDAToolkit QUIET)
-  endif()
-
-  set(SAM_ONNX_ROS_TENSORRT_HINTS "/home/amigo/TensorRT-10.16.1.11")
-  if(DEFINED ENV{TENSORRT_ROOT})
-    set(SAM_ONNX_ROS_TENSORRT_ROOT "$ENV{TENSORRT_ROOT}")
-    list(APPEND SAM_ONNX_ROS_TENSORRT_HINTS "$ENV{TENSORRT_ROOT}")
-  endif()
-  if(DEFINED TENSORRT_ROOT)
-    set(SAM_ONNX_ROS_TENSORRT_ROOT "${TENSORRT_ROOT}")
-    list(APPEND SAM_ONNX_ROS_TENSORRT_HINTS "${TENSORRT_ROOT}")
-  endif()
-
-  if(SAM_ONNX_ROS_TENSORRT_ROOT
-     AND EXISTS "${SAM_ONNX_ROS_TENSORRT_ROOT}/include/NvInfer.h"
-     AND EXISTS "${SAM_ONNX_ROS_TENSORRT_ROOT}/lib/libnvinfer.so"
-     AND EXISTS "${SAM_ONNX_ROS_TENSORRT_ROOT}/lib/libnvonnxparser.so")
-    set(SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR "${SAM_ONNX_ROS_TENSORRT_ROOT}/include")
-    set(SAM_ONNX_ROS_NVINFER_LIBRARY "${SAM_ONNX_ROS_TENSORRT_ROOT}/lib/libnvinfer.so")
-    set(SAM_ONNX_ROS_NVONNXPARSER_LIBRARY "${SAM_ONNX_ROS_TENSORRT_ROOT}/lib/libnvonnxparser.so")
-  endif()
-
-  if(NOT SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR)
-    find_path(SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR
-      NAMES NvInfer.h
-      HINTS ${SAM_ONNX_ROS_TENSORRT_HINTS}
-      PATH_SUFFIXES include
-    )
-  endif()
-  if(NOT SAM_ONNX_ROS_NVINFER_LIBRARY)
-    find_library(SAM_ONNX_ROS_NVINFER_LIBRARY
-      NAMES nvinfer
-      HINTS ${SAM_ONNX_ROS_TENSORRT_HINTS}
-      PATH_SUFFIXES lib lib64 lib/x64
-    )
-  endif()
-  if(NOT SAM_ONNX_ROS_NVONNXPARSER_LIBRARY)
-    find_library(SAM_ONNX_ROS_NVONNXPARSER_LIBRARY
-      NAMES nvonnxparser
-      HINTS ${SAM_ONNX_ROS_TENSORRT_HINTS}
-      PATH_SUFFIXES lib lib64 lib/x64
-    )
-  endif()
-
-  if(CUDAToolkit_FOUND AND SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR AND SAM_ONNX_ROS_NVINFER_LIBRARY AND SAM_ONNX_ROS_NVONNXPARSER_LIBRARY)
-    set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
-    list(APPEND SAM_ONNX_ROS_TENSORRT_LIBRARIES
-      ${SAM_ONNX_ROS_NVINFER_LIBRARY}
-      ${SAM_ONNX_ROS_NVONNXPARSER_LIBRARY}
-      CUDA::cudart
-    )
-    message(STATUS "TensorRT backend enabled.")
-  else()
-    message(STATUS "TensorRT backend disabled: TensorRT headers/libraries were not found. The ONNX backend remains available.")
-  endif()
+  set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
+else()
+  set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
 endif()
 
 configure_file(include/${PROJECT_NAME}/config.hpp.in ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/${PROJECT_NAME}/config.hpp)
@@ -101,6 +43,7 @@ catkin_package(
   INCLUDE_DIRS include sam_tensor_rt/include ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS onnxruntime_ros
+  CATKIN_DEPENDS tensorrt_ros
   DEPENDS ${${PROJECT_NAME}_CUDA_CATKIN_DEPENDS} OpenCV console_bridge
 )
 
@@ -141,11 +84,6 @@ if(SAM_ONNX_ROS_TENSORRT_ENABLED)
     PUBLIC
       sam_tensor_rt/include
   )
-  target_include_directories(${PROJECT_NAME}
-    SYSTEM PRIVATE
-      ${SAM_ONNX_ROS_TENSORRT_INCLUDE_DIR}
-  )
-  target_link_libraries(${PROJECT_NAME} ${SAM_ONNX_ROS_TENSORRT_LIBRARIES})
 endif()
 
 # Main executable links the core lib but its used for testing (the lib is used on ed sensor integration)
