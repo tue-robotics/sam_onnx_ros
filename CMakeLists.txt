@@ -19,18 +19,18 @@ find_package(catkin REQUIRED
 
 option(SAM_ONNX_ROS_ENABLE_TENSORRT "Build the optional SpeedSAM/TensorRT backend when TensorRT is available" ON)
 
-set(${PROJECT_NAME}_CUDA_ENABLED ${onnxruntime_ros_CUDA_ENABLED})
-if(${PROJECT_NAME}_CUDA_ENABLED)
-  find_package(CUDAToolkit REQUIRED)
-  set(${PROJECT_NAME}_CUDA_CATKIN_DEPENDS "CUDAToolkit")
-  set(${PROJECT_NAME}_CUDA_INCLUDE_DIRS "${CUDAToolkit_INCLUDE_DIRS}")
-  set(${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES "CUDA::cudart")
-endif()
-
 if(SAM_ONNX_ROS_ENABLE_TENSORRT)
   set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
 else()
   set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
+endif()
+
+set(${PROJECT_NAME}_CUDA_ENABLED ${onnxruntime_ros_CUDA_ENABLED})
+if(${PROJECT_NAME}_CUDA_ENABLED OR SAM_ONNX_ROS_TENSORRT_ENABLED)
+  find_package(CUDAToolkit REQUIRED)
+  set(${PROJECT_NAME}_CUDA_CATKIN_DEPENDS "CUDAToolkit")
+  set(${PROJECT_NAME}_CUDA_INCLUDE_DIRS "${CUDAToolkit_INCLUDE_DIRS}")
+  set(${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES "CUDA::cudart")
 endif()
 
 configure_file(include/${PROJECT_NAME}/config.hpp.in ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/${PROJECT_NAME}/config.hpp)
@@ -74,7 +74,7 @@ target_link_libraries(${PROJECT_NAME}
   ${${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES}
 )
 
-if(SAM_ONNX_ROS_TENSORRT_ENABLED)
+if(SAM_ONNX_ROS_TENSORRT_ENABLED)  
   target_sources(${PROJECT_NAME}
     PRIVATE
       sam_tensor_rt/src/engineTRT.cpp
