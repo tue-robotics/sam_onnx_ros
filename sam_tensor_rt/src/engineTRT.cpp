@@ -35,9 +35,15 @@ EngineTRT::EngineTRT(string modelPath, vector<string> inputNames, vector<string>
 
     // Check if the model file has an ".onnx" extension
     if (getFileExtension(modelPath) == "onnx") {
-        // If the file is an ONNX model, build the engine using the provided parameters
-        cout << "Building Engine from " << modelPath << endl;
-        build(modelPath, mInputNames, mOutputNames, isDynamicShape, isFP16);
+        std::string trtPath = modelPath.substr(0, modelPath.find_last_of(".")) + ".trt";
+        if (std::filesystem::exists(trtPath)) {
+            cout << "Found existing TRT engine: " << trtPath << ". Deserializing instead." << endl;
+            deserializeEngine(trtPath, mInputNames, mOutputNames);
+        } else {
+            // If the file is an ONNX model and no .trt exists, build the engine
+            cout << "Building Engine from " << modelPath << endl;
+            build(modelPath, mInputNames, mOutputNames, isDynamicShape, isFP16);
+        }
     }
     else {
         // If the file is not an ONNX model, deserialize an existing engine
@@ -132,6 +138,10 @@ void EngineTRT::build(string onnxPath, vector<string> inputNames, vector<string>
     // Deserialize the serialized plan to create an execution engine.
     mEngine = mRuntime->deserializeCudaEngine(plan->data(), plan->size());
     assert(mEngine != nullptr);  // Ensure the engine was deserialized successfully
+
+    // Save the built engine automatically alongside the ONNX file
+    string enginePath = onnxPath.substr(0, onnxPath.find_last_of(".")) + ".trt";
+    saveEngine(enginePath);
 
     // Create an execution context for running inference.
     mContext = mEngine->createExecutionContext();

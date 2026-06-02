@@ -5,7 +5,7 @@
             "name": "Debug SAM Model",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/home/amigo/ros/noetic/system/devel/lib/sam_onnx_ros/test_sam_onnx_ros", // Path to the executable
+            "program": "${workspaceFolder}/build/devel/lib/sam_onnx_ros/test_sam_onnx_ros", // Path to the executable
             "args": [
                 "/home/amigo/Documents/repos/hero_sam.bak/sam_inference/model/SAM_encoder.onnx",
                 "/home/amigo/Documents/repos/hero_sam.bak/sam_inference/model/SAM_mask_decoder.onnx",

@@ -6,7 +6,8 @@ int main()
     // Option : Set the running Path
     std::string path = "";
 
-    // Build the engines from onnx files
+    // Load the models. The code will automatically check for a .trt file first,
+    // and if it doesn't exist, it will build it from the .onnx file and save it as .trt.
     SpeedSam Speedsam(path + "model/SAM_encoder.onnx", path + "model/SAM_mask_decoder.onnx");
 
     /*Segmentation examples */
