@@ -1,0 +1,4 @@
+[submodule "sam_trt_lib"]
+	path = sam_trt_lib
+	url = git@github.com:tue-robotics/sam_trt_library.git
+	branch = master

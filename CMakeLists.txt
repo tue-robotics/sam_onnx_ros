@@ -40,7 +40,7 @@ configure_file(include/${PROJECT_NAME}/config.hpp.in ${CATKIN_DEVEL_PREFIX}/${CA
 # ------------------------------------------------------------------------------------------------
 
 catkin_package(
-  INCLUDE_DIRS include sam_tensor_rt/include ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+  INCLUDE_DIRS include sam_trt_lib/include ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS onnxruntime_ros
   CATKIN_DEPENDS tensorrt_ros
@@ -74,15 +74,15 @@ target_link_libraries(${PROJECT_NAME}
   ${${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES}
 )
 
-if(SAM_ONNX_ROS_TENSORRT_ENABLED)  
+if(SAM_ONNX_ROS_TENSORRT_ENABLED)
   target_sources(${PROJECT_NAME}
     PRIVATE
-      sam_tensor_rt/src/engineTRT.cpp
-      sam_tensor_rt/src/speedSam.cpp
+      sam_trt_lib/src/engineTRT.cpp
+      sam_trt_lib/src/speedSam.cpp
   )
   target_include_directories(${PROJECT_NAME}
     PUBLIC
-      sam_tensor_rt/include
+      sam_trt_lib/include
   )
 endif()
 
