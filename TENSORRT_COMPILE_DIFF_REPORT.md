@@ -5,7 +5,7 @@ Compared against: current workspace based on `a2c10ea` plus local uncommitted ch
 
 ## Executive Summary
 
-The TensorRT-related work is concentrated in `sam_tensor_rt/include/engineTRT.h` and `sam_tensor_rt/src/engineTRT.cpp`.
+The TensorRT-related work integrated by this repository is concentrated in the `sam_trt_lib` submodule, primarily in `sam_trt_lib/include/engineTRT.h` and `sam_trt_lib/src/engineTRT.cpp`.
 The main purpose of these edits was to move the code from the older binding-index TensorRT API to the newer tensor-name API that current TensorRT versions expect.
 
 The most important API migrations are:
@@ -32,7 +32,7 @@ Result: `test_sam_onnx_ros` built successfully.
 
 ## File-By-File Changes
 
-### 1. `sam_tensor_rt/include/engineTRT.h`
+### 1. `sam_trt_lib/include/engineTRT.h`
 
 Changes:
 
@@ -56,7 +56,7 @@ Performance impact:
 - `getTensorIndex()` does a short linear lookup over a very small number of tensors, so the runtime cost is negligible in this project.
 - If this ever grows to many tensors, a hash map could remove that lookup cost, but that is not necessary here.
 
-### 2. `sam_tensor_rt/src/engineTRT.cpp`
+### 2. `sam_trt_lib/src/engineTRT.cpp`
 
 This file contains the real TensorRT compatibility work.
 
@@ -225,7 +225,7 @@ Performance impact:
 
 - No meaningful performance impact.
 
-### 3. `sam_tensor_rt/include/utils.h`
+### 3. `sam_trt_lib/include/utils.h`
 
 Changes:
 
@@ -245,18 +245,15 @@ Compilation relevance:
 
 - Helpful for warning-clean builds, but not part of the TensorRT API migration itself.
 
-### 4. `sam_tensor_rt/assets/blue-linkedin-logo_speedsam_bbox_mask.png`
-### 5. `sam_tensor_rt/assets/dog_speedsam_bbox_mask.png`
-### 6. `sam_tensor_rt/assets/dog_speedsam_bbox_mask_speedsam_bbox_mask.png`
-### 7. `sam_tensor_rt/assets/dogs_speedsam_bbox_mask.png`
+### 4. `sam_trt_lib/assets/`
 
 Changes:
 
-- Four new binary image files were added.
+- Sample image assets live under the upstream `sam_trt_lib/assets/` directory.
 
 Why this was done:
 
-- These look like generated segmentation output examples or demo artifacts.
+- These are upstream demo/example assets from the TensorRT library submodule.
 - They are not referenced in the TensorRT build logic and are not required for compiling the TensorRT backend.
 
 Performance impact:
@@ -264,7 +261,7 @@ Performance impact:
 - None at runtime unless they are loaded manually for demos.
 - No compile impact.
 
-### 8. `.vscode/settings.json`
+### 5. `.vscode/settings.json`
 
 Changes:
 
@@ -283,8 +280,8 @@ Performance impact:
 
 The changes that matter for TensorRT compilation are:
 
-- `sam_tensor_rt/include/engineTRT.h`
-- `sam_tensor_rt/src/engineTRT.cpp`
+- `sam_trt_lib/include/engineTRT.h`
+- `sam_trt_lib/src/engineTRT.cpp`
 
 The specific compile-enabling reasons are:
 
@@ -294,7 +291,7 @@ The specific compile-enabling reasons are:
 - Engine/tensor buffer registration now uses `setTensorAddress(...)`, which matches the newer execution API.
 - Older deserialization and memory-management call patterns were updated to signatures accepted by the current TensorRT SDK.
 
-`sam_tensor_rt/include/utils.h` only helps keep warning-clean builds under strict compiler settings.
+`sam_trt_lib/include/utils.h` only helps keep warning-clean builds under strict compiler settings.
 The image assets and VS Code settings are not part of the compile fix.
 
 ## Performance Conclusion
