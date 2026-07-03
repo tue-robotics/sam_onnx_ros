@@ -18,8 +18,8 @@
 ## Build and Test
 - **Build**: Use `catkin build --this` or `tue-make <package>` or `tue-make --this`.
 - **Dependencies**:
-  - TensorRT requires hardcoded static paths in `CMakeLists.txt` and explicit `catkin_package()` includes targeting `sam_trt_lib`.
-  - Review [TENSORRT_COMPILE_DIFF_REPORT.md](../TENSORRT_COMPILE_DIFF_REPORT.md) and commit `129cc9d` for specific linking and compilation strategies that made `.engine` code build globally through `ed_sensor_integration`.
+  - TensorRT/SpeedSAM support is provided via the `tensorrt_ros` catkin dependency and the `sam_trt_lib` git submodule (initialize with `git submodule update --init --recursive`).
+  - Review [TENSORRT_COMPILE_DIFF_REPORT.md](../TENSORRT_COMPILE_DIFF_REPORT.md) and commit `129cc9d` for historical compilation notes.
 - **Testing (Next Steps)**: Validate the SAM TensorRT outputs identically match standard SAM ONNX outputs during active node iterations. Needs live integration tests.
 
 ## Conventions
