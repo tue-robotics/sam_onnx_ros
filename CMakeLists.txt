@@ -11,19 +11,33 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(console_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(catkin REQUIRED
-  COMPONENTS
-  onnxruntime_ros
-  tensorrt_ros
-)
 
 option(SAM_ONNX_ROS_ENABLE_TENSORRT "Build the optional SpeedSAM/TensorRT backend when TensorRT is available" ON)
 
+set(SAM_ONNX_ROS_CATKIN_COMPONENTS
+  onnxruntime_ros
+)
+set(SAM_ONNX_ROS_CATKIN_DEPENDS
+  onnxruntime_ros
+)
+set(SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS
+  include
+  ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+)
+
 if(SAM_ONNX_ROS_ENABLE_TENSORRT)
   set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
+  list(APPEND SAM_ONNX_ROS_CATKIN_COMPONENTS tensorrt_ros)
+  list(APPEND SAM_ONNX_ROS_CATKIN_DEPENDS tensorrt_ros)
+  list(APPEND SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS sam_trt_lib/include)
 else()
   set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
 endif()
+
+find_package(catkin REQUIRED
+  COMPONENTS
+  ${SAM_ONNX_ROS_CATKIN_COMPONENTS}
+)
 
 set(${PROJECT_NAME}_CUDA_ENABLED ${onnxruntime_ros_CUDA_ENABLED})
 if(${PROJECT_NAME}_CUDA_ENABLED OR SAM_ONNX_ROS_TENSORRT_ENABLED)
@@ -40,10 +54,9 @@ configure_file(include/${PROJECT_NAME}/config.hpp.in ${CATKIN_DEVEL_PREFIX}/${CA
 # ------------------------------------------------------------------------------------------------
 
 catkin_package(
-  INCLUDE_DIRS include sam_trt_lib/include ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+  INCLUDE_DIRS ${SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS}
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS onnxruntime_ros
-  CATKIN_DEPENDS tensorrt_ros
+  CATKIN_DEPENDS ${SAM_ONNX_ROS_CATKIN_DEPENDS}
   DEPENDS ${${PROJECT_NAME}_CUDA_CATKIN_DEPENDS} OpenCV console_bridge
 )
 
@@ -75,6 +88,9 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 if(SAM_ONNX_ROS_TENSORRT_ENABLED)
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sam_trt_lib/src/engineTRT.cpp")
+     message(FATAL_ERROR "SAM_ONNX_ROS_TENSORRT_ENABLED is ON but the sam_trt_lib submodule is missing. Run: git submodule update --init --recursive")
+   endif()
   target_sources(${PROJECT_NAME}
     PRIVATE
       sam_trt_lib/src/engineTRT.cpp
@@ -142,8 +158,8 @@ install(
 #                                           Testing
 # ------------------------------------------------------------------------------------------------
 if (CATKIN_ENABLE_TESTING)
-  # find_package(catkin_lint_cmake REQUIRED)
-  # catkin_add_catkin_lint_test("-W2 --ignore EXTERNAL_DIRECTORY --ignore EXTERNAL_FILE --ignore EXTERNAL_INCLUDE_PATH --ignore HEADER_OUTSIDE_PACKAGE_INCLUDE_PATH --ignore MISSING_DIRECTORY")
+  find_package(catkin_lint_cmake REQUIRED)
+  catkin_add_catkin_lint_test("-W2 --ignore EXTERNAL_DIRECTORY --ignore EXTERNAL_FILE --ignore EXTERNAL_INCLUDE_PATH --ignore HEADER_OUTSIDE_PACKAGE_INCLUDE_PATH --ignore MISSING_DIRECTORY")
 
   # Utils unit tests (no models needed)
   catkin_add_gtest(utils_tests test/test_utils.cpp)

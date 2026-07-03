@@ -67,6 +67,11 @@ void SegmentAnything(SamWrapper& samWrapper,
 {
     if (samWrapper.backend == SEG::Backend::kOnnx)
     {
+         if (samWrapper.samSegmentors.size() < 2 || !samWrapper.samSegmentors[0] || !samWrapper.samSegmentors[1])
+         {
+             throw std::runtime_error("SegmentAnything: ONNX backend requires 2 initialized SAM sessions (encoder + decoder).");
+         }
+
         SEG::MODEL_TYPE modelTypeRef = params_encoder.modelType;
         samWrapper.samSegmentors[0]->RunSession(img, resSam, modelTypeRef, res);
 

@@ -34,27 +34,44 @@ bool IsSupportedImage(const std::filesystem::path& path)
 
 std::vector<std::filesystem::path> CollectInputs(const std::filesystem::path& input_path)
 {
-    std::vector<std::filesystem::path> images;
-
-    if (std::filesystem::is_regular_file(input_path))
+    try
     {
-        if (IsSupportedImage(input_path))
+        if (!std::filesystem::exists(input_path))
         {
-            images.push_back(input_path);
+            throw std::invalid_argument("Input path '" + input_path.string() + "' does not exist.");
         }
+
+        std::vector<std::filesystem::path> images;
+
+        if (std::filesystem::is_regular_file(input_path))
+        {
+            if (IsSupportedImage(input_path))
+            {
+                images.push_back(input_path);
+            }
+            return images;
+        }
+
+        if (!std::filesystem::is_directory(input_path))
+        {
+            throw std::invalid_argument("Input path '" + input_path.string() + "' is not a regular file or directory.");
+        }
+
+        for (const auto& entry : std::filesystem::directory_iterator(input_path))
+        {
+            if (entry.is_regular_file() && IsSupportedImage(entry.path()))
+            {
+                images.push_back(entry.path());
+            }
+        }
+
+        std::sort(images.begin(), images.end());
         return images;
     }
-
-    for (const auto& entry : std::filesystem::directory_iterator(input_path))
+    catch (const std::filesystem::filesystem_error& error)
     {
-        if (entry.is_regular_file() && IsSupportedImage(entry.path()))
-        {
-            images.push_back(entry.path());
-        }
+        throw std::invalid_argument("Failed to access input path '" + input_path.string() + "': " + error.code().message());
     }
-
-    std::sort(images.begin(), images.end());
-    return images;
 }
 
 SEG::Backend ParseBackend(const std::string& value)
