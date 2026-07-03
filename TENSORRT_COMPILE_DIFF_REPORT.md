@@ -1,6 +1,6 @@
 # TensorRT Compile Diff Report
 
-Comparison baseline: commit `ab6ee9e98333c4a9f462592e521617f984a1e899`  
+Comparison baseline: commit `ab6ee9e98333c4a9f462592e521617f984a1e899`
 Compared against: current workspace based on `a2c10ea` plus local uncommitted changes
 
 ## Executive Summary
