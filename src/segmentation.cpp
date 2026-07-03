@@ -1,6 +1,8 @@
 #include "sam_onnx_ros/config.hpp"
 #include "sam_onnx_ros/segmentation.hpp"
 
+#include <stdexcept>
+
 std::tuple<
     SamWrapper,
     SEG::DL_INIT_PARAM,

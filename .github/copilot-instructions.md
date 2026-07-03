@@ -1,7 +1,7 @@
 # Project Guidelines
 
 ## Code Style
-- Follow ROS/C++14 standards.
+- Follow ROS/C++17 standards.
 - Use the Pimpl (Pointer to Implementation) idiom for heavy neural networks to avoid polluting headers (e.g., `SamSegPipeline::Impl`).
 
 ## Architecture

@@ -35,12 +35,12 @@
             "args": [
                 //"--gtest_filter=${input:gtestFilter}"          // uncomment to filter tests
             ],
-            "cwd": "${workspaceFolder}", // cwd doesn’t matter if SAM_MODELS_DIR is set
+            "cwd": "${input:testWorkingDir}",
             "environment": [
                 {
                     "name": "SAM_MODELS_DIR",
-                    "value": "${env:SAM_MODELS_DIR}"
-                } // or hardcode a path here
+                    "value": "/home/amigo/ros/noetic/system/build/sam_onnx_ros/resources/speed_SAM"
+                }
             ],
             "stopAtEntry": false,
             "externalConsole": false,
@@ -95,6 +95,15 @@
             "type": "promptString",
             "description": "gtest filter (e.g. Utils* or SamInferenceTest.PreProcess*)",
             "default": "*"
+        },
+        {
+            "id": "testWorkingDir",
+            "type": "pickString",
+            "description": "Select working directory (sam_tests needs speed_SAM)",
+            "options": [
+                "/home/amigo/ros/noetic/system/build/sam_onnx_ros/resources/speed_SAM",
+                "${workspaceFolder}"
+            ]
         }
     ],
 }

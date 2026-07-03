@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <filesystem>
+#include <string>
 
 // This file contains higher-level (integration-ish) tests.
 // They cover object/session creation and a full pipeline run using synthetic images.
@@ -14,6 +15,14 @@
 class SamInferenceTest : public ::testing::Test
 {
 protected:
+    void RequireInitializedModelsOrSkip()
+    {
+        if (!models_available_)
+        {
+            GTEST_SKIP() << missing_models_reason_;
+        }
+    }
+
     void SetUp() override
     {
         // Create simple synthetic images:
@@ -29,8 +38,28 @@ protected:
         // Cache non-square size for preprocessing helpers.
         NonSquareImgSize = { testImage_800x600.cols, testImage_800x600.rows };
 
-        // Use package helpers to build default params and SAM objects.
-        std::tie(samWrapper, params_encoder, params_decoder, res, resSam) = Initialize("./SAM_encoder.onnx", "./SAM_mask_decoder.onnx", SEG::Backend::kOnnx);
+        const std::filesystem::path encoder_model = "./SAM_encoder.onnx";
+        const std::filesystem::path decoder_model = "./SAM_mask_decoder.onnx";
+
+        if (!std::filesystem::exists(encoder_model) || !std::filesystem::exists(decoder_model))
+        {
+            models_available_ = false;
+            missing_models_reason_ = "Required models not found in working directory: './SAM_encoder.onnx' and './SAM_mask_decoder.onnx'.";
+            return;
+        }
+
+        try
+        {
+            // Use package helpers to build default params and SAM objects.
+            std::tie(samWrapper, params_encoder, params_decoder, res, resSam) =
+                Initialize(encoder_model, decoder_model, SEG::Backend::kOnnx);
+            models_available_ = true;
+        }
+        catch (const std::exception& e)
+        {
+            models_available_ = false;
+            missing_models_reason_ = std::string("Model initialization failed: ") + e.what();
+        }
 
     }
 
@@ -50,6 +79,8 @@ protected:
     SEG::DL_INIT_PARAM params_encoder, params_decoder;
     SEG::DL_RESULT res;
     std::vector<SEG::DL_RESULT> resSam;
+    bool models_available_ = false;
+    std::string missing_models_reason_;
 };
 
 // Simple smoke test: we can construct a SAM object without throwing.
@@ -64,12 +95,12 @@ TEST_F(SamInferenceTest, ObjectCreation)
 // Skips if the model file is not available.
 TEST_F(SamInferenceTest, CreateSessionWithValidModel)
 {
-    if (!std::filesystem::exists("./SAM_encoder.onnx"))
-    {
-        GTEST_SKIP() << "Model not found in build dir";
-    }
+    RequireInitializedModelsOrSkip();
 
-    EXPECT_GT(samWrapper.samSegmentors.size(), 0) << "CreateSession should succeed with valid parameters";
+    EXPECT_EQ(samWrapper.samSegmentors.size(), 2u)
+        << "Initialize should create both encoder and decoder sessions";
+    ASSERT_TRUE(samWrapper.samSegmentors[0]);
+    ASSERT_TRUE(samWrapper.samSegmentors[1]);
 }
 
 // Confirms that giving an invalid model path returns an error (no crash).
@@ -87,10 +118,7 @@ TEST_F(SamInferenceTest, CreateSessionWithInvalidModel)
 // and returns a mask vector. Skips if models are not available.
 TEST_F(SamInferenceTest, FullInferencePipeline)
 {
-    if (!std::filesystem::exists("./SAM_encoder.onnx") || !std::filesystem::exists("./SAM_mask_decoder.onnx"))
-    {
-        GTEST_SKIP() << "Models not found in build dir";
-    }
+    RequireInitializedModelsOrSkip();
 
     SegmentAnything(samWrapper, params_encoder, params_decoder, testImage_realistic, resSam, res);
 }
