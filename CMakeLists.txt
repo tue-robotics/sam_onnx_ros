@@ -20,9 +20,10 @@ set(SAM_ONNX_ROS_CATKIN_COMPONENTS
 set(SAM_ONNX_ROS_CATKIN_DEPENDS
   onnxruntime_ros
 )
+set(SAM_ONNX_ROS_DEVEL_INCLUDE_DIR ${CATKIN_DEVEL_PREFIX}/include)
 set(SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS
   include
-  ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+  ${SAM_ONNX_ROS_DEVEL_INCLUDE_DIR}
 )
 
 if(SAM_ONNX_ROS_ENABLE_TENSORRT)
@@ -47,7 +48,7 @@ if(${PROJECT_NAME}_CUDA_ENABLED OR SAM_ONNX_ROS_TENSORRT_ENABLED)
   set(${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES "CUDA::cudart")
 endif()
 
-configure_file(include/${PROJECT_NAME}/config.hpp.in ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/${PROJECT_NAME}/config.hpp)
+configure_file(include/${PROJECT_NAME}/config.hpp.in ${SAM_ONNX_ROS_DEVEL_INCLUDE_DIR}/${PROJECT_NAME}/config.hpp)
 
 # ------------------------------------------------------------------------------------------------
 #                                        CATKIN EXPORT
@@ -66,7 +67,7 @@ catkin_package(
 
 include_directories(
   include
-  ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+  ${SAM_ONNX_ROS_DEVEL_INCLUDE_DIR}
   SYSTEM
   ${${PROJECT_NAME}_CUDA_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
@@ -126,7 +127,7 @@ file(
 # ------------------------------------------------------------------------------------------------
 
 install(FILES
-  ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_INCLUDE_DESTINATION}/config.hpp
+  ${SAM_ONNX_ROS_DEVEL_INCLUDE_DIR}/${PROJECT_NAME}/config.hpp
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
