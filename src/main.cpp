@@ -269,5 +269,12 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    return RunMain(encoder_name, decoder_name, imgs_path, backend, prompt_mode);
-}
+    try
+    {
+        return RunMain(encoder_name, decoder_name, imgs_path, backend, prompt_mode);
+    }
+    catch (const std::exception& error)
+    {
+        std::cerr << error.what() << std::endl;
+        return 1;
+    }
