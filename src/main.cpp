@@ -149,7 +149,7 @@ int RunMain(const std::filesystem::path& encoder_name,
         // Populate dummy boxes for decoder as if given by an Object detection Node
         if (prompt_mode == PromptMode::kBbox)
         {
-            res.boxes.push_back(cv::Rect(0, 0, std::max(img.cols - 1, 0), std::max(img.rows - 1, 0)));
+            res.boxes.push_back(cv::Rect(0, 0, img.cols, img.rows));
         }
         // Or let the user specify a region of interest (ROI)
         else if (prompt_mode == PromptMode::kRoi)
@@ -168,7 +168,11 @@ int RunMain(const std::filesystem::path& encoder_name,
         else
         {
             // Center point fallback logic if extended later
-            res.boxes.push_back(cv::Rect(img.cols / 2 - 10, img.rows / 2 - 10, 20, 20));
+            const int w = std::min(20, img.cols);
+            const int h = std::min(20, img.rows);
+            const int x = std::max(0, img.cols / 2 - w / 2);
+            const int y = std::max(0, img.rows / 2 - h / 2);
+            res.boxes.push_back(cv::Rect(x, y, w, h));
         }
 
         SegmentAnything(samWrapper, params_encoder, params_decoder, img, resSam, res);
