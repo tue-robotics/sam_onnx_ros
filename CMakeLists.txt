@@ -30,7 +30,7 @@ if(SAM_ONNX_ROS_ENABLE_TENSORRT)
   set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
   list(APPEND SAM_ONNX_ROS_CATKIN_COMPONENTS tensorrt_ros)
   list(APPEND SAM_ONNX_ROS_CATKIN_DEPENDS tensorrt_ros)
-  list(APPEND SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS sam_trt_lib/include)
+  list(APPEND SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS 3rdparty/sam_trt_lib/include)
 else()
   set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
 endif()
@@ -89,17 +89,17 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 if(SAM_ONNX_ROS_TENSORRT_ENABLED)
-  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sam_trt_lib/src/engineTRT.cpp")
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sam_trt_lib/src/engineTRT.cpp")
      message(FATAL_ERROR "SAM_ONNX_ROS_TENSORRT_ENABLED is ON but the sam_trt_lib submodule is missing. Run: git submodule update --init --recursive")
    endif()
   target_sources(${PROJECT_NAME}
     PRIVATE
-      sam_trt_lib/src/engineTRT.cpp
-      sam_trt_lib/src/speedSam.cpp
+      3rdparty/sam_trt_lib/src/engineTRT.cpp
+      3rdparty/sam_trt_lib/src/speedSam.cpp
   )
   target_include_directories(${PROJECT_NAME}
     PUBLIC
-      sam_trt_lib/include
+      3rdparty/sam_trt_lib/include
   )
 endif()
 
