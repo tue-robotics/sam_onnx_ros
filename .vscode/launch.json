@@ -11,7 +11,8 @@
                 "/home/amigo/ros/noetic/system/build/sam_onnx_ros/resources/speed_SAM/SAM_mask_decoder.onnx",
                 "/home/amigo/Documents/repos/hero_sam.bak/pipeline/build/images1", // Pick your custom image directory here
                 "--backend=speedsam",
-                "--prompt=roi"
+                "--prompt=roi",
+                "--logging"
             ], // Add any command-line arguments for your program here
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}", // Set the working directory

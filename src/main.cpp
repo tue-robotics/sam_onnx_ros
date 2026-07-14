@@ -24,8 +24,6 @@ enum class PromptMode
     kRoi,
 };
 
-// #define LOGGING
-
 bool IsSupportedImage(const std::filesystem::path& path)
 {
     const std::string extension = path.extension().string();
@@ -109,14 +107,15 @@ PromptMode ParsePromptMode(const std::string& value)
 void PrintUsage(const char* executable)
 {
     std::cerr << "Usage: " << executable << " <encoder_model> <decoder_model> <image_or_dir> "
-              << "[--backend=onnx|speedsam] [--prompt=bbox|point|roi]" << std::endl;
+              << "[--backend=onnx|speedsam] [--prompt=bbox|point|roi] [--logging]" << std::endl;
 }
 
 int RunMain(const std::filesystem::path& encoder_name,
             const std::filesystem::path& decoder_name,
             const std::filesystem::path& input_path,
             SEG::Backend backend,
-            PromptMode prompt_mode)
+            PromptMode prompt_mode,
+            bool logging)
 {
     SamWrapper samWrapper;
     SEG::DL_INIT_PARAM params_encoder;
@@ -141,7 +140,6 @@ int RunMain(const std::filesystem::path& encoder_name,
             std::cerr << "Failed to read image: " << image_path << std::endl;
             continue;
         }
-
 
         res.boxes.clear();
         resSam.clear();
@@ -203,7 +201,8 @@ int RunMain(const std::filesystem::path& encoder_name,
             }
         }
 
-#ifdef LOGGING
+    if (logging)
+        {
         for (const auto& result : resSam)
         {
             std::cout << "Image path:   " << image_path << "\n"
@@ -211,8 +210,8 @@ int RunMain(const std::filesystem::path& encoder_name,
                       << "# embeddings: " << result.embeddings.size() << "\n"
                       << "# masks:      " << result.masks.size() << "\n";
         }
-#endif
     }
+}
 
     return 0;
 }
@@ -221,7 +220,7 @@ int RunMain(const std::filesystem::path& encoder_name,
 
 int main(int argc, char *argv[])
 {
-    if (argc < 4)
+    if (argc < 5)
     {
         PrintUsage(argv[0]);
         return 1;
@@ -230,6 +229,7 @@ int main(int argc, char *argv[])
     const std::filesystem::path encoder_name = argv[1];
     const std::filesystem::path decoder_name = argv[2];
     std::filesystem::path imgs_path = argv[3];
+    bool logging = argv[4] == std::string("--logging") ? true : false;
 
     SEG::Backend backend = SEG::Backend::kOnnx;
     PromptMode prompt_mode = PromptMode::kBbox;
@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
 
     try
     {
-        return RunMain(encoder_name, decoder_name, imgs_path, backend, prompt_mode);
+        return RunMain(encoder_name, decoder_name, imgs_path, backend, prompt_mode, logging);
     }
     catch (const std::exception& error)
     {
