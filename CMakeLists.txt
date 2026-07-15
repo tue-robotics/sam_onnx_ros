@@ -12,7 +12,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(console_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 
-option(SAM_ONNX_ROS_ENABLE_TENSORRT "Build the optional SpeedSAM/TensorRT backend when TensorRT is available" ON)
+option(${PROJECT_NAME}_ENABLE_TENSORRT "Build the optional SpeedSAM/TensorRT backend when TensorRT is available" ON)
+if(DEFINED SAM_ONNX_ROS_ENABLE_TENSORRT)
+  set(${PROJECT_NAME}_ENABLE_TENSORRT ${SAM_ONNX_ROS_ENABLE_TENSORRT})
+endif()
 
 set(SAM_ONNX_ROS_CATKIN_COMPONENTS
   onnxruntime_ros
@@ -20,13 +23,11 @@ set(SAM_ONNX_ROS_CATKIN_COMPONENTS
 set(SAM_ONNX_ROS_CATKIN_DEPENDS
   onnxruntime_ros
 )
-set(SAM_ONNX_ROS_DEVEL_INCLUDE_DIR ${CATKIN_DEVEL_PREFIX}/include)
 set(SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS
   include
-  ${SAM_ONNX_ROS_DEVEL_INCLUDE_DIR}
 )
 
-if(SAM_ONNX_ROS_ENABLE_TENSORRT)
+if(${PROJECT_NAME}_ENABLE_TENSORRT)
   set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
   list(APPEND SAM_ONNX_ROS_CATKIN_COMPONENTS tensorrt_ros)
   list(APPEND SAM_ONNX_ROS_CATKIN_DEPENDS tensorrt_ros)
@@ -48,7 +49,9 @@ if(${PROJECT_NAME}_CUDA_ENABLED OR SAM_ONNX_ROS_TENSORRT_ENABLED)
   set(${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES "CUDA::cudart")
 endif()
 
-configure_file(include/${PROJECT_NAME}/config.hpp.in ${SAM_ONNX_ROS_DEVEL_INCLUDE_DIR}/${PROJECT_NAME}/config.hpp)
+set(SAM_ONNX_ROS_CONFIG_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/config.hpp)
+# @ONLY changes substitution behavior from: default: replace both ${VAR} and @VAR@ with @ONLY: replace only @VAR@
+configure_file(include/${PROJECT_NAME}/config.hpp.in ${SAM_ONNX_ROS_CONFIG_HEADER} @ONLY)
 
 # ------------------------------------------------------------------------------------------------
 #                                        CATKIN EXPORT
@@ -67,7 +70,6 @@ catkin_package(
 
 include_directories(
   include
-  ${SAM_ONNX_ROS_DEVEL_INCLUDE_DIR}
   SYSTEM
   ${${PROJECT_NAME}_CUDA_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
@@ -90,8 +92,8 @@ target_link_libraries(${PROJECT_NAME}
 
 if(SAM_ONNX_ROS_TENSORRT_ENABLED)
   if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sam_trt_lib/src/engineTRT.cpp")
-     message(FATAL_ERROR "SAM_ONNX_ROS_TENSORRT_ENABLED is ON but the sam_trt_lib submodule is missing. Run: git submodule update --init --recursive")
-   endif()
+    message(FATAL_ERROR "SAM_ONNX_ROS_TENSORRT_ENABLED is ON but the sam_trt_lib submodule is missing. Run: git submodule update --init --recursive")
+  endif()
   target_sources(${PROJECT_NAME}
     PRIVATE
       3rdparty/sam_trt_lib/src/engineTRT.cpp
@@ -109,6 +111,7 @@ add_executable(test_${PROJECT_NAME}
 )
 target_link_libraries(test_${PROJECT_NAME} ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
 
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM)
 
 file(
   DOWNLOAD https://github.com/tue-robotics/${PROJECT_NAME}/releases/download/speed_SAM/SAM_encoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM/SAM_encoder.onnx
@@ -127,7 +130,7 @@ file(
 # ------------------------------------------------------------------------------------------------
 
 install(FILES
-  ${SAM_ONNX_ROS_DEVEL_INCLUDE_DIR}/${PROJECT_NAME}/config.hpp
+  ${SAM_ONNX_ROS_CONFIG_HEADER}
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
@@ -151,7 +154,7 @@ install(
 )
 
 install(
-  DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/resources
+  DIRECTORY resources/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/resources
 )
 
