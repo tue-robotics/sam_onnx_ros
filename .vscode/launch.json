@@ -5,12 +5,17 @@
             "name": "Debug SAM Model",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/home/amigo/ros/noetic/system/devel/lib/sam_onnx_ros/test_sam_onnx_ros", // Path to the executable
-            "args": ["/home/amigo/Documents/repos/hero_sam.bak/sam_inference/model/SAM_encoder.onnx",
-                "/home/amigo/Documents/repos/hero_sam.bak/sam_inference/model/SAM_mask_decoder.onnx",
-                "/home/amigo/Documents/repos/hero_sam.bak/pipeline/build/images"], // Add any command-line arguments for your program here
+            "program": "${workspaceFolder}/build/devel/lib/sam_onnx_ros/test_sam_onnx_ros", // Path to the executable
+            "args": [
+                "/home/amigo/ros/noetic/system/build/sam_onnx_ros/resources/speed_SAM/SAM_encoder.onnx",
+                "/home/amigo/ros/noetic/system/build/sam_onnx_ros/resources/speed_SAM/SAM_mask_decoder.onnx",
+                "/home/amigo/Documents/repos/hero_sam.bak/pipeline/build/images1", // Pick your custom image directory here
+                "--backend=speedsam",
+                "--prompt=roi",
+                "--logging"
+            ], // Add any command-line arguments for your program here
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/build", // Set the working directory
+            "cwd": "${workspaceFolder}", // Set the working directory
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -31,12 +36,12 @@
             "args": [
                 //"--gtest_filter=${input:gtestFilter}"          // uncomment to filter tests
             ],
-            "cwd": "${workspaceFolder}", // cwd doesn’t matter if SAM_MODELS_DIR is set
+            "cwd": "${input:testWorkingDir}",
             "environment": [
                 {
                     "name": "SAM_MODELS_DIR",
-                    "value": "${env:SAM_MODELS_DIR}"
-                } // or hardcode a path here
+                    "value": "/home/amigo/ros/noetic/system/build/sam_onnx_ros/resources/speed_SAM"
+                }
             ],
             "stopAtEntry": false,
             "externalConsole": false,
@@ -91,6 +96,15 @@
             "type": "promptString",
             "description": "gtest filter (e.g. Utils* or SamInferenceTest.PreProcess*)",
             "default": "*"
+        },
+        {
+            "id": "testWorkingDir",
+            "type": "pickString",
+            "description": "Select working directory (sam_tests needs speed_SAM)",
+            "options": [
+                "/home/amigo/ros/noetic/system/build/sam_onnx_ros/resources/speed_SAM",
+                "${workspaceFolder}"
+            ]
         }
     ],
 }
