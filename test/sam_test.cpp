@@ -15,14 +15,6 @@
 class SamInferenceTest : public ::testing::Test
 {
 protected:
-    void RequireInitializedModelsOrSkip()
-    {
-        if (!models_available_)
-        {
-            GTEST_SKIP() << missing_models_reason_;
-        }
-    }
-
     void SetUp() override
     {
         // Create simple synthetic images:
@@ -95,7 +87,11 @@ TEST_F(SamInferenceTest, ObjectCreation)
 // Skips if the model file is not available.
 TEST_F(SamInferenceTest, CreateSessionWithValidModel)
 {
-    RequireInitializedModelsOrSkip();
+    // GTEST_SKIP only returns from the current function, so it must be called from the test body
+    if (!models_available_)
+    {
+        GTEST_SKIP() << missing_models_reason_;
+    }
 
     EXPECT_EQ(samWrapper.samSegmentors.size(), 2u)
         << "Initialize should create both encoder and decoder sessions";
@@ -118,7 +114,11 @@ TEST_F(SamInferenceTest, CreateSessionWithInvalidModel)
 // and returns a mask vector. Skips if models are not available.
 TEST_F(SamInferenceTest, FullInferencePipeline)
 {
-    RequireInitializedModelsOrSkip();
+    // GTEST_SKIP only returns from the current function, so it must be called from the test body
+    if (!models_available_)
+    {
+        GTEST_SKIP() << missing_models_reason_;
+    }
 
     SegmentAnything(samWrapper, params_encoder, params_decoder, testImage_realistic, resSam, res);
 }

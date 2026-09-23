@@ -76,7 +76,16 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
         {
             OrtCUDAProviderOptions cudaOption;
             cudaOption.device_id = 0;
-            sessionOption.AppendExecutionProvider_CUDA(cudaOption);
+            try
+            {
+                sessionOption.AppendExecutionProvider_CUDA(cudaOption);
+            }
+            catch (const std::exception& e)
+            {
+                // E.g. no GPU or missing CUDA/cuDNN libraries at runtime
+                CONSOLE_BRIDGE_logWarn("[SAM]: Failed to enable CUDA, falling back to CPU: %s", e.what());
+                cudaEnable_ = false;
+            }
         }
 
         sessionOption.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
