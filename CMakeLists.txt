@@ -11,8 +11,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(console_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+# CUDA is optional, it is required by the TensorRT backend and by onnxruntime_ros when built with CUDA
+find_package(CUDAToolkit QUIET)
 
-option(${PROJECT_NAME}_ENABLE_TENSORRT "Build the optional SpeedSAM/TensorRT backend when TensorRT is available" ON)
+option(${PROJECT_NAME}_ENABLE_TENSORRT "Build the optional SpeedSAM/TensorRT backend when CUDA is available" ON)
 if(DEFINED SAM_ONNX_ROS_ENABLE_TENSORRT)
   set(${PROJECT_NAME}_ENABLE_TENSORRT ${SAM_ONNX_ROS_ENABLE_TENSORRT})
 endif()
@@ -27,12 +29,15 @@ set(SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS
   include
 )
 
-if(${PROJECT_NAME}_ENABLE_TENSORRT)
+if(${PROJECT_NAME}_ENABLE_TENSORRT AND CUDAToolkit_FOUND)
   set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
   list(APPEND SAM_ONNX_ROS_CATKIN_COMPONENTS tensorrt_ros)
   list(APPEND SAM_ONNX_ROS_CATKIN_DEPENDS tensorrt_ros)
   list(APPEND SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS 3rdparty/sam_trt_lib/include)
 else()
+  if(${PROJECT_NAME}_ENABLE_TENSORRT)
+    message(STATUS "CUDA toolkit not found, building without the TensorRT backend")
+  endif()
   set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
 endif()
 
@@ -48,7 +53,9 @@ else()
 endif()
 
 if(${PROJECT_NAME}_CUDA_ENABLED)
-  find_package(CUDAToolkit REQUIRED)
+  if(NOT CUDAToolkit_FOUND)
+    message(FATAL_ERROR "onnxruntime_ros is built with CUDA, but the CUDA toolkit could not be found")
+  endif()
   set(${PROJECT_NAME}_CUDA_CATKIN_DEPENDS "CUDAToolkit")
   set(${PROJECT_NAME}_CUDA_INCLUDE_DIRS "${CUDAToolkit_INCLUDE_DIRS}")
   set(${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES "CUDA::cudart")
