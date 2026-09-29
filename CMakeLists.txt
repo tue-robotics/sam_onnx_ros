@@ -14,7 +14,7 @@ find_package(OpenCV REQUIRED)
 # CUDA is optional, it is required by the TensorRT backend and by onnxruntime_ros when built with CUDA
 find_package(CUDAToolkit QUIET)
 
-option(${PROJECT_NAME}_ENABLE_TENSORRT "Build the optional SpeedSAM/TensorRT backend when CUDA is available" ON)
+option(${PROJECT_NAME}_ENABLE_TENSORRT "Build the optional SpeedSAM/TensorRT backend when TensorRT is available" ON)
 if(DEFINED SAM_ONNX_ROS_ENABLE_TENSORRT)
   set(${PROJECT_NAME}_ENABLE_TENSORRT ${SAM_ONNX_ROS_ENABLE_TENSORRT})
 endif()
