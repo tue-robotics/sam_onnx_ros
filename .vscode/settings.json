@@ -73,5 +73,6 @@
         "stop_token": "cpp",
         "*.txx": "cpp",
         "filesystem": "cpp"
-    }
+    },
+    "ROS2.distro": "noetic"
 }
