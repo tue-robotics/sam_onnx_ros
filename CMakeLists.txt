@@ -61,7 +61,7 @@ if(${PROJECT_NAME}_CUDA_ENABLED)
   set(${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES "CUDA::cudart")
 endif()
 
-set(SAM_ONNX_ROS_CONFIG_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/config.hpp)
+set(SAM_ONNX_ROS_CONFIG_HEADER ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/${PROJECT_NAME}/config.hpp)
 # @ONLY changes substitution behavior from: default: replace both ${VAR} and @VAR@ with @ONLY: replace only @VAR@
 configure_file(include/${PROJECT_NAME}/config.hpp.in ${SAM_ONNX_ROS_CONFIG_HEADER} @ONLY)
 
