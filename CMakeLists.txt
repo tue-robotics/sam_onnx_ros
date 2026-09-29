@@ -166,7 +166,7 @@ install(
 )
 
 install(
-  DIRECTORY resources/
+  DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/resources/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/resources
 )
 
