@@ -25,11 +25,6 @@ set(SAM_ONNX_ROS_CATKIN_COMPONENTS
 set(SAM_ONNX_ROS_CATKIN_DEPENDS
   onnxruntime_ros
 )
-set(SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS
-  include
-  ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-)
-
 if(${PROJECT_NAME}_ENABLE_TENSORRT AND CUDAToolkit_FOUND)
   set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
   list(APPEND SAM_ONNX_ROS_CATKIN_COMPONENTS tensorrt_ros)
@@ -64,6 +59,13 @@ endif()
 set(SAM_ONNX_ROS_CONFIG_HEADER ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/${PROJECT_NAME}/config.hpp)
 # @ONLY changes substitution behavior from: default: replace both ${VAR} and @VAR@ with @ONLY: replace only @VAR@
 configure_file(include/${PROJECT_NAME}/config.hpp.in ${SAM_ONNX_ROS_CONFIG_HEADER} @ONLY)
+
+# Dependants include the generated config.hpp through the exported devel include dir.
+# CATKIN_GLOBAL_INCLUDE_DESTINATION is only defined by find_package(catkin), so this must come after it.
+set(SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS
+  include
+  ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
+)
 
 # ------------------------------------------------------------------------------------------------
 #                                        CATKIN EXPORT
