@@ -10,11 +10,6 @@
 #include <string>
 #include <vector>
 
-#if SAM_ONNX_ROS_TENSORRT_ENABLED
-#include "speedSam.h"
-#include "utils.h"
-#endif
-
 namespace
 {
 enum class PromptMode

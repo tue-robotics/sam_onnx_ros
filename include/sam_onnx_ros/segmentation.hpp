@@ -4,10 +4,6 @@
 #include "sam_onnx_ros/sam_inference.hpp"
 #include "sam_onnx_ros/config.hpp"
 
-#if SAM_ONNX_ROS_TENSORRT_ENABLED
-#include <speedSam.h>
-#endif
-
 #include <filesystem>
 #include <memory>
 #include <vector>
@@ -21,16 +17,22 @@ namespace SEG
     };
 }
 
+// Forward declared to keep the sam_trt_lib headers out of the public include path
+class SpeedSam;
+
 class SamWrapper
 {
 public:
     SEG::Backend backend;
     std::vector<std::unique_ptr<SAM>> samSegmentors;
-#if SAM_ONNX_ROS_TENSORRT_ENABLED
+    // Only set for the SpeedSAM backend, which requires TensorRT support at compile time
     std::unique_ptr<SpeedSam> speedSam;
-#endif
 
-    SamWrapper() : backend(SEG::Backend::kOnnx) {}
+    // Defined in segmentation.cpp, where SpeedSam is a complete type
+    SamWrapper();
+    ~SamWrapper();
+    SamWrapper(SamWrapper&&) noexcept;
+    SamWrapper& operator=(SamWrapper&&) noexcept;
 };
 
 std::tuple<

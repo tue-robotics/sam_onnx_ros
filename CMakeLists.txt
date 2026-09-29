@@ -34,7 +34,6 @@ if(${PROJECT_NAME}_ENABLE_TENSORRT AND CUDAToolkit_FOUND)
   set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
   list(APPEND SAM_ONNX_ROS_CATKIN_COMPONENTS tensorrt_ros)
   list(APPEND SAM_ONNX_ROS_CATKIN_DEPENDS tensorrt_ros)
-  list(APPEND SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS 3rdparty/sam_trt_lib/include)
 else()
   if(${PROJECT_NAME}_ENABLE_TENSORRT)
     message(STATUS "CUDA toolkit not found, building without the TensorRT backend")
@@ -114,7 +113,7 @@ if(SAM_ONNX_ROS_TENSORRT_ENABLED)
       3rdparty/sam_trt_lib/src/speedSam.cpp
   )
   target_include_directories(${PROJECT_NAME}
-    PUBLIC
+    PRIVATE
       3rdparty/sam_trt_lib/include
   )
 endif()

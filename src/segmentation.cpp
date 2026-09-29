@@ -1,7 +1,19 @@
 #include "sam_onnx_ros/config.hpp"
 #include "sam_onnx_ros/segmentation.hpp"
 
+#if SAM_ONNX_ROS_TENSORRT_ENABLED
+#include <speedSam.h>
+#else
+// Never instantiated, but SamWrapper's std::unique_ptr<SpeedSam> needs a complete type to be destructible
+class SpeedSam {};
+#endif
+
 #include <stdexcept>
+
+SamWrapper::SamWrapper() : backend(SEG::Backend::kOnnx) {}
+SamWrapper::~SamWrapper() = default;
+SamWrapper::SamWrapper(SamWrapper&&) noexcept = default;
+SamWrapper& SamWrapper::operator=(SamWrapper&&) noexcept = default;
 
 std::tuple<
     SamWrapper,

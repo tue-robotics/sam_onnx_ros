@@ -57,10 +57,7 @@ protected:
 
     // Clean up the SAM objects after each test.
     void TearDown() override {
-        samWrapper.samSegmentors.clear();
-#if SAM_ONNX_ROS_TENSORRT_ENABLED
-        samWrapper.speedSam.reset();
-#endif
+        samWrapper = SamWrapper();
     }
 
     // Test data and objects shared across tests.
