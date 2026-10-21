@@ -128,15 +128,21 @@ target_link_libraries(test_${PROJECT_NAME} ${PROJECT_NAME} ${OpenCV_LIBRARIES} $
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM)
 
+# Authenticate the downloads when a GITHUB_TOKEN is available, to avoid rate limiting
+set(${PROJECT_NAME}_DOWNLOAD_ARGS SHOW_PROGRESS)
+if(NOT "$ENV{GITHUB_TOKEN}" STREQUAL "")
+  list(APPEND ${PROJECT_NAME}_DOWNLOAD_ARGS HTTPHEADER "Authorization: Bearer $ENV{GITHUB_TOKEN}")
+endif()
+
 file(
   DOWNLOAD https://github.com/tue-robotics/${PROJECT_NAME}/releases/download/speed_SAM/SAM_encoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM/SAM_encoder.onnx
   EXPECTED_HASH "SHA256=d266fcdc9e4f0182b59946cd3cf1be331641f1d0d1de2415c4fd94e7a1c9cf0a"
-  SHOW_PROGRESS
+  ${${PROJECT_NAME}_DOWNLOAD_ARGS}
 )
 file(
   DOWNLOAD https://github.com/tue-robotics/${PROJECT_NAME}/releases/download/speed_SAM/SAM_mask_decoder.onnx ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM/SAM_mask_decoder.onnx
   EXPECTED_HASH "SHA256=73b7c7bbe1ac78ada6f9534dfec5d4c31791fe8e57d552fa878c993020fae528"
-  SHOW_PROGRESS
+  ${${PROJECT_NAME}_DOWNLOAD_ARGS}
 )
 
 
