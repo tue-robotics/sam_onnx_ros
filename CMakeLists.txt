@@ -129,6 +129,8 @@ target_link_libraries(test_${PROJECT_NAME} ${PROJECT_NAME} ${OpenCV_LIBRARIES} $
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM)
 
 # Authenticate the downloads when a GITHUB_TOKEN is available, to avoid rate limiting
+# The token only authenticates the downloads and doesn't affect the build result, so silence catkin_lint's ENV_VAR warning
+#catkin_lint: ignore env_var
 set(${PROJECT_NAME}_DOWNLOAD_ARGS SHOW_PROGRESS)
 if(NOT "$ENV{GITHUB_TOKEN}" STREQUAL "")
   list(APPEND ${PROJECT_NAME}_DOWNLOAD_ARGS HTTPHEADER "Authorization: Bearer $ENV{GITHUB_TOKEN}")
@@ -144,6 +146,7 @@ file(
   EXPECTED_HASH "SHA256=73b7c7bbe1ac78ada6f9534dfec5d4c31791fe8e57d552fa878c993020fae528"
   ${${PROJECT_NAME}_DOWNLOAD_ARGS}
 )
+#catkin_lint: report env_var
 
 
 # ------------------------------------------------------------------------------------------------
