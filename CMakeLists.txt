@@ -17,9 +17,6 @@ find_package(ament_cmake REQUIRED)
 find_package(console_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(onnxruntime_ros REQUIRED)
-get_filename_component(SAM_ONNX_ROS_ONNXRUNTIME_PREFIX "${onnxruntime_ros_DIR}/../../.." ABSOLUTE)
-set(SAM_ONNX_ROS_ONNXRUNTIME_INCLUDE_DIR "${SAM_ONNX_ROS_ONNXRUNTIME_PREFIX}/include")
-set(SAM_ONNX_ROS_ONNXRUNTIME_LIBRARY "${SAM_ONNX_ROS_ONNXRUNTIME_PREFIX}/lib/libonnxruntime.so")
 # CUDA is optional, it is required by the TensorRT backend and by onnxruntime_ros when built with CUDA
 find_package(CUDAToolkit QUIET)
 
@@ -71,7 +68,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:include>
-  ${SAM_ONNX_ROS_ONNXRUNTIME_INCLUDE_DIR}
 )
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
   ${${PROJECT_NAME}_CUDA_INCLUDE_DIRS}
@@ -81,7 +77,7 @@ target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
 
 target_link_libraries(${PROJECT_NAME}
   ${OpenCV_LIBRARIES}
-  ${SAM_ONNX_ROS_ONNXRUNTIME_LIBRARY}
+  onnxruntime::onnxruntime
   ${console_bridge_LIBRARIES}
   ${${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES}
 )
