@@ -1,16 +1,25 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8)
 
 project(sam_onnx_ros)
 
-add_compile_options(-Wall -Werror=all)
-add_compile_options(-Wextra -Werror=extra)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # -------------- Support C++17 for using filesystem  ------------------#
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Werror=all)
+  add_compile_options(-Wextra -Werror=extra)
+endif()
 
+find_package(ament_cmake REQUIRED)
 find_package(console_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(onnxruntime_ros REQUIRED)
+get_filename_component(SAM_ONNX_ROS_ONNXRUNTIME_PREFIX "${onnxruntime_ros_DIR}/../../.." ABSOLUTE)
+set(SAM_ONNX_ROS_ONNXRUNTIME_INCLUDE_DIR "${SAM_ONNX_ROS_ONNXRUNTIME_PREFIX}/include")
+set(SAM_ONNX_ROS_ONNXRUNTIME_LIBRARY "${SAM_ONNX_ROS_ONNXRUNTIME_PREFIX}/lib/libonnxruntime.so")
 # CUDA is optional, it is required by the TensorRT backend and by onnxruntime_ros when built with CUDA
 find_package(CUDAToolkit QUIET)
 
@@ -19,27 +28,15 @@ if(DEFINED SAM_ONNX_ROS_ENABLE_TENSORRT)
   set(${PROJECT_NAME}_ENABLE_TENSORRT ${SAM_ONNX_ROS_ENABLE_TENSORRT})
 endif()
 
-set(SAM_ONNX_ROS_CATKIN_COMPONENTS
-  onnxruntime_ros
-)
-set(SAM_ONNX_ROS_CATKIN_DEPENDS
-  onnxruntime_ros
-)
 if(${PROJECT_NAME}_ENABLE_TENSORRT AND CUDAToolkit_FOUND)
   set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
-  list(APPEND SAM_ONNX_ROS_CATKIN_COMPONENTS tensorrt_ros)
-  list(APPEND SAM_ONNX_ROS_CATKIN_DEPENDS tensorrt_ros)
+  find_package(tensorrt_ros REQUIRED)
 else()
   if(${PROJECT_NAME}_ENABLE_TENSORRT)
     message(STATUS "CUDA toolkit not found, building without the TensorRT backend")
   endif()
   set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
 endif()
-
-find_package(catkin REQUIRED
-  COMPONENTS
-  ${SAM_ONNX_ROS_CATKIN_COMPONENTS}
-)
 
 if(onnxruntime_ros_CUDA_ENABLED OR SAM_ONNX_ROS_TENSORRT_ENABLED)
   set(${PROJECT_NAME}_CUDA_ENABLED TRUE)
@@ -51,46 +48,18 @@ if(${PROJECT_NAME}_CUDA_ENABLED)
   if(NOT CUDAToolkit_FOUND)
     message(FATAL_ERROR "onnxruntime_ros is built with CUDA, but the CUDA toolkit could not be found")
   endif()
-  set(${PROJECT_NAME}_CUDA_CATKIN_DEPENDS "CUDAToolkit")
   set(${PROJECT_NAME}_CUDA_INCLUDE_DIRS "${CUDAToolkit_INCLUDE_DIRS}")
   set(${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES "CUDA::cudart")
 endif()
 
-set(SAM_ONNX_ROS_CONFIG_HEADER ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}/${PROJECT_NAME}/config.hpp)
+set(SAM_ONNX_ROS_CONFIG_HEADER ${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME}/config.hpp)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME})
 # @ONLY changes substitution behavior from: default: replace both ${VAR} and @VAR@ with @ONLY: replace only @VAR@
 configure_file(include/${PROJECT_NAME}/config.hpp.in ${SAM_ONNX_ROS_CONFIG_HEADER} @ONLY)
-
-# Dependants include the generated config.hpp through the exported devel include dir.
-# CATKIN_GLOBAL_INCLUDE_DESTINATION is only defined by find_package(catkin), so this must come after it.
-set(SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS
-  include
-  ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-)
-
-# ------------------------------------------------------------------------------------------------
-#                                        CATKIN EXPORT
-# ------------------------------------------------------------------------------------------------
-
-catkin_package(
-  INCLUDE_DIRS ${SAM_ONNX_ROS_PUBLIC_INCLUDE_DIRS}
-  LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS ${SAM_ONNX_ROS_CATKIN_DEPENDS}
-  DEPENDS ${${PROJECT_NAME}_CUDA_CATKIN_DEPENDS} OpenCV console_bridge
-)
 
 # ------------------------------------------------------------------------------------------------
 #                                           BUILD
 # ------------------------------------------------------------------------------------------------
-
-include_directories(
-  include
-  ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-  SYSTEM
-  ${${PROJECT_NAME}_CUDA_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-  ${console_bridge_INCLUDE_DIRS}
-)
 
 add_library(${PROJECT_NAME}
   src/sam_inference.cpp
@@ -98,9 +67,21 @@ add_library(${PROJECT_NAME}
   src/utils.cpp
 )
 
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${SAM_ONNX_ROS_ONNXRUNTIME_INCLUDE_DIR}
+)
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
+  ${${PROJECT_NAME}_CUDA_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  ${console_bridge_INCLUDE_DIRS}
+)
+
 target_link_libraries(${PROJECT_NAME}
   ${OpenCV_LIBRARIES}
-  ${catkin_LIBRARIES}
+  ${SAM_ONNX_ROS_ONNXRUNTIME_LIBRARY}
   ${console_bridge_LIBRARIES}
   ${${PROJECT_NAME}_CUDA_TARGET_LINK_LIBRARIES}
 )
@@ -118,19 +99,24 @@ if(SAM_ONNX_ROS_TENSORRT_ENABLED)
     PRIVATE
       3rdparty/sam_trt_lib/include
   )
+  target_link_libraries(${PROJECT_NAME} tensorrt_ros::tensorrt_ros)
 endif()
 
 # Main executable links the core lib but its used for testing (the lib is used on ed sensor integration)
 add_executable(test_${PROJECT_NAME}
   src/main.cpp
 )
-target_link_libraries(test_${PROJECT_NAME} ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
+target_link_libraries(test_${PROJECT_NAME} ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${console_bridge_LIBRARIES})
+
+target_include_directories(test_${PROJECT_NAME} PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_BINARY_DIR}/include
+)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM)
 
 # Authenticate the downloads when a GITHUB_TOKEN is available, to avoid rate limiting
-# The token only authenticates the downloads and doesn't affect the build result, so silence catkin_lint's ENV_VAR warning
-#catkin_lint: ignore env_var
+# The token only authenticates the downloads and doesn't affect the build result.
 set(${PROJECT_NAME}_DOWNLOAD_ARGS SHOW_PROGRESS)
 if(NOT "$ENV{GITHUB_TOKEN}" STREQUAL "")
   list(APPEND ${PROJECT_NAME}_DOWNLOAD_ARGS HTTPHEADER "Authorization: Bearer $ENV{GITHUB_TOKEN}")
@@ -146,67 +132,74 @@ file(
   EXPECTED_HASH "SHA256=73b7c7bbe1ac78ada6f9534dfec5d4c31791fe8e57d552fa878c993020fae528"
   ${${PROJECT_NAME}_DOWNLOAD_ARGS}
 )
-#catkin_lint: report env_var
-
-
 # ------------------------------------------------------------------------------------------------
 #                                               INSTALL
 # ------------------------------------------------------------------------------------------------
 
-install(FILES
-  ${SAM_ONNX_ROS_CONFIG_HEADER}
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-)
-
 install(
   DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  DESTINATION include/${PROJECT_NAME}
+)
+
+install(
+  FILES ${SAM_ONNX_ROS_CONFIG_HEADER}
+  DESTINATION include/${PROJECT_NAME}
 )
 
 install(
   TARGETS
     ${PROJECT_NAME}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
 
 install(
   TARGETS
-    ${PROJECT_NAME}
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    test_${PROJECT_NAME}
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
   DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/resources/
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/resources
+  DESTINATION share/${PROJECT_NAME}/resources
 )
 
 # ------------------------------------------------------------------------------------------------
 #                                           Testing
 # ------------------------------------------------------------------------------------------------
-if (CATKIN_ENABLE_TESTING)
-  find_package(catkin_lint_cmake REQUIRED)
-  catkin_add_catkin_lint_test("-W2 --ignore EXTERNAL_DIRECTORY --ignore EXTERNAL_FILE --ignore EXTERNAL_INCLUDE_PATH --ignore HEADER_OUTSIDE_PACKAGE_INCLUDE_PATH --ignore MISSING_DIRECTORY")
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_cmake_lint_cmake REQUIRED)
+  find_package(ament_cmake_xmllint REQUIRED)
+  ament_lint_cmake(MAX_LINE_LENGTH 120)
+  ament_xmllint(MAX_LINE_LENGTH 120)
 
   # Utils unit tests (no models needed)
-  catkin_add_gtest(utils_tests test/test_utils.cpp)
+  ament_add_gtest(utils_tests test/test_utils.cpp)
   if(TARGET utils_tests)
     target_link_libraries(
       utils_tests
       ${PROJECT_NAME}
-      ${catkin_LIBRARIES}
       )
   endif()
 
   # SAM integration-ish tests (may need models)
-  catkin_add_gtest(sam_tests test/sam_test.cpp WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM")
+  ament_add_gtest(sam_tests test/sam_test.cpp WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/resources/speed_SAM")
   if(TARGET sam_tests)
     target_link_libraries(
       sam_tests
       ${PROJECT_NAME}
       ${OpenCV_LIBRARIES}
-      ${catkin_LIBRARIES}
     )
   endif()
 endif()
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(OpenCV console_bridge onnxruntime_ros)
+if(SAM_ONNX_ROS_TENSORRT_ENABLED)
+  ament_export_dependencies(tensorrt_ros)
+endif()
+
+ament_package()
