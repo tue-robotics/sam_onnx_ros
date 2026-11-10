@@ -14,18 +14,18 @@ namespace
 {
 enum class PromptMode
 {
-    kBbox,
-    kPoint,
-    kRoi,
+    K_BBOX,
+    K_POINT,
+    K_ROI,
 };
 
-bool IsSupportedImage(const std::filesystem::path& path)
+bool isSupportedImage(const std::filesystem::path& path)
 {
     const std::string extension = path.extension().string();
     return extension == ".jpg" || extension == ".jpeg" || extension == ".png";
 }
 
-std::vector<std::filesystem::path> CollectInputs(const std::filesystem::path& input_path)
+std::vector<std::filesystem::path> collectInputs(const std::filesystem::path& input_path)
 {
     try
     {
@@ -38,7 +38,7 @@ std::vector<std::filesystem::path> CollectInputs(const std::filesystem::path& in
 
         if (std::filesystem::is_regular_file(input_path))
         {
-            if (IsSupportedImage(input_path))
+            if (isSupportedImage(input_path))
             {
                 images.push_back(input_path);
             }
@@ -52,7 +52,7 @@ std::vector<std::filesystem::path> CollectInputs(const std::filesystem::path& in
 
         for (const auto& entry : std::filesystem::directory_iterator(input_path))
         {
-            if (entry.is_regular_file() && IsSupportedImage(entry.path()))
+            if (entry.is_regular_file() && isSupportedImage(entry.path()))
             {
                 images.push_back(entry.path());
             }
@@ -68,60 +68,60 @@ std::vector<std::filesystem::path> CollectInputs(const std::filesystem::path& in
     }
 }
 
-SEG::Backend ParseBackend(const std::string& value)
+SEG::Backend parseBackend(const std::string& value)
 {
     if (value == "onnx")
     {
-        return SEG::Backend::kOnnx;
+        return SEG::Backend::ONNX;
     }
     if (value == "speedsam")
     {
-        return SEG::Backend::kSpeedSam;
+        return SEG::Backend::SPEED_SAM;
     }
 
     throw std::invalid_argument("Unsupported backend '" + value + "'. Use 'onnx' or 'speedsam'.");
 }
 
-PromptMode ParsePromptMode(const std::string& value)
+PromptMode parsePromptMode(const std::string& value)
 {
     if (value == "bbox")
     {
-        return PromptMode::kBbox;
+        return PromptMode::K_BBOX;
     }
     if (value == "point")
     {
-        return PromptMode::kPoint;
+        return PromptMode::K_POINT;
     }
     if (value == "roi")
     {
-        return PromptMode::kRoi;
+        return PromptMode::K_ROI;
     }
 
     throw std::invalid_argument("Unsupported prompt mode '" + value + "'. Use 'bbox', 'point', or 'roi'.");
 }
 
-void PrintUsage(const char* executable)
+void printUsage(const char* executable)
 {
     std::cerr << "Usage: " << executable << " <encoder_model> <decoder_model> <image_or_dir> "
               << "[--backend=onnx|speedsam] [--prompt=bbox|point|roi] [--logging]" << std::endl;
 }
 
-int RunMain(const std::filesystem::path& encoder_name,
+int runMain(const std::filesystem::path& encoder_name,
             const std::filesystem::path& decoder_name,
             const std::filesystem::path& input_path,
             SEG::Backend backend,
             PromptMode prompt_mode,
             bool logging)
 {
-    SamWrapper samWrapper;
-    SEG::DL_INIT_PARAM params_encoder;
-    SEG::DL_INIT_PARAM params_decoder;
-    std::vector<SEG::DL_RESULT> resSam;
-    SEG::DL_RESULT res;
+    SamWrapper sam_wrapper;
+    SEG::DlInitParam params_encoder;
+    SEG::DlInitParam params_decoder;
+    std::vector<SEG::DlResult> res_sam;
+    SEG::DlResult res;
 
-    std::tie(samWrapper, params_encoder, params_decoder, res, resSam) = Initialize(encoder_name, decoder_name, backend);
+    std::tie(sam_wrapper, params_encoder, params_decoder, res, res_sam) = initialize(encoder_name, decoder_name, backend);
 
-    const auto images = CollectInputs(input_path);
+    const auto images = collectInputs(input_path);
     if (images.empty())
     {
         std::cerr << "No supported images found in " << input_path << std::endl;
@@ -138,15 +138,15 @@ int RunMain(const std::filesystem::path& encoder_name,
         }
 
         res.boxes.clear();
-        resSam.clear();
+        res_sam.clear();
 
         // Populate dummy boxes for decoder as if given by an Object detection Node
-        if (prompt_mode == PromptMode::kBbox)
+        if (prompt_mode == PromptMode::K_BBOX)
         {
             res.boxes.push_back(cv::Rect(0, 0, img.cols, img.rows));
         }
         // Or let the user specify a region of interest (ROI)
-        else if (prompt_mode == PromptMode::kRoi)
+        else if (prompt_mode == PromptMode::K_ROI)
         {
             cv::namedWindow("Select ROI", cv::WINDOW_AUTOSIZE);
             cv::Rect bbox = cv::selectROI("Select ROI", img, false, false);
@@ -169,39 +169,39 @@ int RunMain(const std::filesystem::path& encoder_name,
             res.boxes.push_back(cv::Rect(x, y, w, h));
         }
 
-        SegmentAnything(samWrapper, params_encoder, params_decoder, img, resSam, res);
+        segmentAnything(sam_wrapper, params_encoder, params_decoder, img, res_sam, res);
 
-        std::string modeStr = (backend == SEG::Backend::kSpeedSam) ? "speedsam" : "onnx";
-        std::string promptStr = (prompt_mode == PromptMode::kBbox)  ? " Bbox prompt"
-                                : (prompt_mode == PromptMode::kRoi) ? " ROI prompt"
+        std::string mode_str = (backend == SEG::Backend::SPEED_SAM) ? "speedsam" : "onnx";
+        std::string prompt_str = (prompt_mode == PromptMode::K_BBOX)  ? " Bbox prompt"
+                                : (prompt_mode == PromptMode::K_ROI) ? " ROI prompt"
                                                                     : " Point prompt";
-        std::string windowName = "SAM Result (" + modeStr + " -" + promptStr + ")";
+        std::string window_name = "SAM Result (" + mode_str + " -" + prompt_str + ")";
 
-        if (!resSam.empty() && !resSam.front().masks.empty())
+        if (!res_sam.empty() && !res_sam.front().masks.empty())
         {
             cv::Mat rendered = img.clone();
-            cv::Mat mask = resSam.front().masks.front();
+            cv::Mat mask = res_sam.front().masks.front();
             if (!mask.empty())
             {
-                cv::Mat colorMask = cv::Mat::zeros(rendered.size(), CV_8UC3);
-                colorMask.setTo(cv::Scalar(0, 200, 0), mask);
-                cv::addWeighted(rendered, 0.7, colorMask, 0.3, 0, rendered);
+                cv::Mat color_mask = cv::Mat::zeros(rendered.size(), CV_8UC3);
+                color_mask.setTo(cv::Scalar(0, 200, 0), mask);
+                cv::addWeighted(rendered, 0.7, color_mask, 0.3, 0, rendered);
                 std::vector<std::vector<cv::Point>> contours;
                 cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
                 cv::drawContours(rendered, contours, -1, cv::Scalar(0, 255, 255), 2);
 
-                cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
-                cv::imshow(windowName, rendered);
+                cv::namedWindow(window_name, cv::WINDOW_AUTOSIZE);
+                cv::imshow(window_name, rendered);
                 std::cout << "Displaying result for " << image_path.filename() << "..." << std::endl;
                 std::cout << "Press any key on the image window to continue..." << std::endl;
                 cv::waitKey(0);
-                cv::destroyWindow(windowName);
+                cv::destroyWindow(window_name);
             }
         }
 
         if (logging)
         {
-            for (const auto& result : resSam)
+            for (const auto& result : res_sam)
             {
                 std::cout << "Image path:   " << image_path << "\n"
                           << "# boxes:      " << result.boxes.size() << "\n"
@@ -220,7 +220,7 @@ int main(int argc, char* argv[])
 {
     if (argc < 5)
     {
-        PrintUsage(argv[0]);
+        printUsage(argv[0]);
         return 1;
     }
 
@@ -229,8 +229,8 @@ int main(int argc, char* argv[])
     std::filesystem::path imgs_path = argv[3];
     bool logging = argv[4] == std::string("--logging") ? true : false;
 
-    SEG::Backend backend = SEG::Backend::kOnnx;
-    PromptMode prompt_mode = PromptMode::kBbox;
+    SEG::Backend backend = SEG::Backend::ONNX;
+    PromptMode prompt_mode = PromptMode::K_BBOX;
 
     try
     {
@@ -239,15 +239,15 @@ int main(int argc, char* argv[])
             const std::string argument = argv[i];
             if (argument.rfind("--backend=", 0) == 0)
             {
-                backend = ParseBackend(argument.substr(std::string("--backend=").size()));
+                backend = parseBackend(argument.substr(std::string("--backend=").size()));
             }
             else if (argument.rfind("--prompt=", 0) == 0)
             {
-                prompt_mode = ParsePromptMode(argument.substr(std::string("--prompt=").size()));
+                prompt_mode = parsePromptMode(argument.substr(std::string("--prompt=").size()));
             }
             else if (argument == "--help")
             {
-                PrintUsage(argv[0]);
+                printUsage(argv[0]);
                 return 0;
             }
             else
@@ -259,12 +259,12 @@ int main(int argc, char* argv[])
     catch (const std::exception& error)
     {
         std::cerr << error.what() << std::endl;
-        PrintUsage(argv[0]);
+        printUsage(argv[0]);
         return 1;
     }
 
 #if !SAM_ONNX_ROS_TENSORRT_ENABLED
-    if (backend == SEG::Backend::kSpeedSam)
+    if (backend == SEG::Backend::SPEED_SAM)
     {
         std::cerr
             << "This binary was built without TensorRT support. Install TensorRT and rebuild, or use --backend=onnx."
@@ -275,7 +275,7 @@ int main(int argc, char* argv[])
 
     try
     {
-        return RunMain(encoder_name, decoder_name, imgs_path, backend, prompt_mode, logging);
+        return runMain(encoder_name, decoder_name, imgs_path, backend, prompt_mode, logging);
     }
     catch (const std::exception& error)
     {

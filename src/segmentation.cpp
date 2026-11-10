@@ -12,21 +12,21 @@ class SpeedSam
 
 #include <stdexcept>
 
-SamWrapper::SamWrapper() : backend(SEG::Backend::kOnnx) {}
+SamWrapper::SamWrapper() : backend(SEG::Backend::ONNX) {}
 SamWrapper::~SamWrapper() = default;
 SamWrapper::SamWrapper(SamWrapper&&) noexcept = default;
 SamWrapper& SamWrapper::operator=(SamWrapper&&) noexcept = default;
 
-std::tuple<SamWrapper, SEG::DL_INIT_PARAM, SEG::DL_INIT_PARAM, SEG::DL_RESULT, std::vector<SEG::DL_RESULT>> Initialize(
+std::tuple<SamWrapper, SEG::DlInitParam, SEG::DlInitParam, SEG::DlResult, std::vector<SEG::DlResult>> initialize(
     const std::filesystem::path& encoder_filename, const std::filesystem::path& decoder_filename, SEG::Backend backend)
 {
-    SamWrapper samWrapper;
-    samWrapper.backend = backend;
+    SamWrapper sam_wrapper;
+    sam_wrapper.backend = backend;
 
-    SEG::DL_INIT_PARAM params_encoder;
-    SEG::DL_INIT_PARAM params_decoder;
-    SEG::DL_RESULT res;
-    std::vector<SEG::DL_RESULT> resSam;
+    SEG::DlInitParam params_encoder;
+    SEG::DlInitParam params_decoder;
+    SEG::DlResult res;
+    std::vector<SEG::DlResult> res_sam;
 
     params_encoder.modelPath = encoder_filename.string();
     params_encoder.imgSize = {1024, 1024};
@@ -34,10 +34,10 @@ std::tuple<SamWrapper, SEG::DL_INIT_PARAM, SEG::DL_INIT_PARAM, SEG::DL_RESULT, s
     params_decoder.modelType = SEG::SAM_SEGMENT_DECODER;
     params_decoder.modelPath = decoder_filename.string();
 
-    if (backend == SEG::Backend::kOnnx)
+    if (backend == SEG::Backend::ONNX)
     {
-        std::unique_ptr<SAM> samSegmentorEncoder = std::make_unique<SAM>();
-        std::unique_ptr<SAM> samSegmentorDecoder = std::make_unique<SAM>();
+        std::unique_ptr<SAM> sam_segmentor_encoder = std::make_unique<SAM>();
+        std::unique_ptr<SAM> sam_segmentor_decoder = std::make_unique<SAM>();
 
 #if defined(SAM_ONNX_ROS_CUDA_ENABLED) && SAM_ONNX_ROS_CUDA_ENABLED
         params_encoder.cudaEnable = true;
@@ -47,52 +47,52 @@ std::tuple<SamWrapper, SEG::DL_INIT_PARAM, SEG::DL_INIT_PARAM, SEG::DL_RESULT, s
         params_decoder.cudaEnable = false;
 #endif
 
-        samSegmentorEncoder->CreateSession(params_encoder);
-        samSegmentorDecoder->CreateSession(params_decoder);
+        sam_segmentor_encoder->createSession(params_encoder);
+        sam_segmentor_decoder->createSession(params_decoder);
 
-        samWrapper.samSegmentors.push_back(std::move(samSegmentorEncoder));
-        samWrapper.samSegmentors.push_back(std::move(samSegmentorDecoder));
+        sam_wrapper.samSegmentors.push_back(std::move(sam_segmentor_encoder));
+        sam_wrapper.samSegmentors.push_back(std::move(sam_segmentor_decoder));
     }
 #if SAM_ONNX_ROS_TENSORRT_ENABLED
-    else if (backend == SEG::Backend::kSpeedSam)
+    else if (backend == SEG::Backend::SPEED_SAM)
     {
-        samWrapper.speedSam = std::make_unique<SpeedSam>(encoder_filename.string(), decoder_filename.string());
+        sam_wrapper.speedSam = std::make_unique<SpeedSam>(encoder_filename.string(), decoder_filename.string());
     }
 #else
-    else if (backend == SEG::Backend::kSpeedSam)
+    else if (backend == SEG::Backend::SPEED_SAM)
     {
         throw std::runtime_error(
-            "[ERROR] Cannot Initialize: backend 'speedsam' was requested, but 'sam_onnx_ros' was compiled WITHOUT "
+            "[ERROR] Cannot initialize: backend 'speedsam' was requested, but 'sam_onnx_ros' was compiled WITHOUT "
             "TensorRT! Please install TensorRT headers and rebuild.");
     }
 #endif
 
-    return {std::move(samWrapper), params_encoder, params_decoder, res, resSam};
+    return {std::move(sam_wrapper), params_encoder, params_decoder, res, res_sam};
 }
 
-void SegmentAnything(SamWrapper& samWrapper,
-                     const SEG::DL_INIT_PARAM& params_encoder,
-                     const SEG::DL_INIT_PARAM& params_decoder,
+void segmentAnything(SamWrapper& samWrapper,
+                     const SEG::DlInitParam& params_encoder,
+                     const SEG::DlInitParam& params_decoder,
                      const cv::Mat& img,
-                     std::vector<SEG::DL_RESULT>& resSam,
-                     SEG::DL_RESULT& res)
+                     std::vector<SEG::DlResult>& resSam,
+                     SEG::DlResult& res)
 {
-    if (samWrapper.backend == SEG::Backend::kOnnx)
+    if (samWrapper.backend == SEG::Backend::ONNX)
     {
         if (samWrapper.samSegmentors.size() < 2 || !samWrapper.samSegmentors[0] || !samWrapper.samSegmentors[1])
         {
             throw std::runtime_error(
-                "SegmentAnything: ONNX backend requires 2 initialized SAM sessions (encoder + decoder).");
+                "segmentAnything: ONNX backend requires 2 initialized SAM sessions (encoder + decoder).");
         }
 
-        SEG::MODEL_TYPE modelTypeRef = params_encoder.modelType;
-        samWrapper.samSegmentors[0]->RunSession(img, resSam, modelTypeRef, res);
+        SEG::MODEL_TYPE model_type_ref = params_encoder.modelType;
+        samWrapper.samSegmentors[0]->runSession(img, resSam, model_type_ref, res);
 
-        modelTypeRef = params_decoder.modelType;
-        samWrapper.samSegmentors[1]->RunSession(img, resSam, modelTypeRef, res);
+        model_type_ref = params_decoder.modelType;
+        samWrapper.samSegmentors[1]->runSession(img, resSam, model_type_ref, res);
     }
 #if SAM_ONNX_ROS_TENSORRT_ENABLED
-    else if (samWrapper.backend == SEG::Backend::kSpeedSam)
+    else if (samWrapper.backend == SEG::Backend::SPEED_SAM)
     {
         // Mimic the exact behaviour of Onnx Pipeline: encode then decode per box.
         // It outputs masks bounding boxes inside resSam.
@@ -113,11 +113,11 @@ void SegmentAnything(SamWrapper& samWrapper,
         resSam.push_back(res);
     }
 #else
-    else if (samWrapper.backend == SEG::Backend::kSpeedSam)
+    else if (samWrapper.backend == SEG::Backend::SPEED_SAM)
     {
         // Fail loudly rather than doing 0ms silent returns
         throw std::runtime_error(
-            "[ERROR] SegmentAnything: backend 'speedsam' was requested, but 'sam_onnx_ros' was compiled WITHOUT "
+            "[ERROR] segmentAnything: backend 'speedsam' was requested, but 'sam_onnx_ros' was compiled WITHOUT "
             "TensorRT! Please install TensorRT headers and rebuild.");
     }
 #endif

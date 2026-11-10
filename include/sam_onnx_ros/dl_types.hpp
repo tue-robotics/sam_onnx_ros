@@ -15,7 +15,7 @@ enum MODEL_TYPE
     SAM_SEGMENT_DECODER = 2,
 };
 
-typedef struct _DL_INIT_PARAM
+struct DlInitParam
 {
     // Yolo & Common Part
     std::string modelPath;
@@ -25,8 +25,8 @@ typedef struct _DL_INIT_PARAM
     int logSeverityLevel = 3;
     int intraOpNumThreads = 1;
 
-    // Overloaded output operator for _DL_INIT_PARAM to print its contents
-    friend std::ostream& operator<<(std::ostream& os, const _DL_INIT_PARAM& param)
+    // Overloaded output operator for DlInitParam to print its contents
+    friend std::ostream& operator<<(std::ostream& os, const DlInitParam& param)
     {
         os << "modelPath: " << param.modelPath << "\n";
         os << "modelType: " << param.modelType << "\n";
@@ -40,16 +40,16 @@ typedef struct _DL_INIT_PARAM
         return os;
     }
 
-} DL_INIT_PARAM;
+};
 
-typedef struct _DL_RESULT
+struct DlResult
 {
     // For SAM encoder model, this will be filled with detected boxes from object detection model.
     std::vector<cv::Rect> boxes;
     std::vector<float> embeddings;
     std::vector<cv::Mat> masks;
 
-} DL_RESULT;
+};
 
 } // namespace SEG
 

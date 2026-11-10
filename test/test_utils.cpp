@@ -22,8 +22,8 @@ TEST_F(UtilsTest, GrayscaleToRGBKeepsSize)
     cv::Mat out;
     std::vector<int> target{1024, 1024};
 
-    // Call PreProcess and expect no error.
-    const char* err = u.PreProcess(gray, target, out);
+    // Call preProcess and expect no error.
+    const char* err = u.preProcess(gray, target, out);
     ASSERT_EQ(err, nullptr);
 
     // After preprocessing, we must have 3 channels (RGB).
@@ -44,7 +44,7 @@ TEST_F(UtilsTest, PreprocessTopLeftPaddingAndAspect)
     cv::Mat out;
     std::vector<int> target{1024, 1024};
 
-    ASSERT_EQ(u.PreProcess(img, target, out), nullptr);
+    ASSERT_EQ(u.preProcess(img, target, out), nullptr);
     ASSERT_EQ(out.size(), cv::Size(target[0], target[1]));
     ASSERT_EQ(out.channels(), 3);
 
@@ -52,7 +52,7 @@ TEST_F(UtilsTest, PreprocessTopLeftPaddingAndAspect)
     int resized_w = target[0];
     int resized_h = static_cast<int>(img.rows / (img.cols / static_cast<float>(target[0])));
 
-    // PreProcess converts BGR -> RGB, so expected color is swapped.
+    // preProcess converts BGR -> RGB, so expected color is swapped.
     cv::Scalar expected_rgb(fill[2], fill[1], fill[0]);
 
     // The top-left region (resized content) should keep the image color.
@@ -72,7 +72,7 @@ TEST_F(UtilsTest, PreprocessTopLeftPaddingAndAspect)
     }
 }
 
-// Explicitly ensure imgSize is interpreted as [W, H] in PreProcess for non-square targets.
+// Explicitly ensure imgSize is interpreted as [W, H] in preProcess for non-square targets.
 TEST_F(UtilsTest, PreprocessNonSquareWidthHeightOrder)
 {
     // Input image: H=300, W=500
@@ -82,7 +82,7 @@ TEST_F(UtilsTest, PreprocessNonSquareWidthHeightOrder)
     std::vector<int> target{640, 480};
     cv::Mat out;
 
-    ASSERT_EQ(u.PreProcess(img, target, out), nullptr);
+    ASSERT_EQ(u.preProcess(img, target, out), nullptr);
     // cols = width, rows = height
     EXPECT_EQ(out.cols, target[0]);
     EXPECT_EQ(out.rows, target[1]);
@@ -108,7 +108,7 @@ TEST_P(UtilsPreprocessParamTest, LetterboxWithinBoundsAndChannels3)
     cv::Mat img(inSize, CV_8UC3, cv::Scalar(1, 2, 3));
     cv::Mat out;
 
-    ASSERT_EQ(u.PreProcess(img, {target.width, target.height}, out), nullptr);
+    ASSERT_EQ(u.preProcess(img, {target.width, target.height}, out), nullptr);
     EXPECT_EQ(out.size(), target);
     EXPECT_EQ(out.channels(), 3);
 
@@ -163,7 +163,7 @@ TEST_F(UtilsScaleBboxPointsTest, IdentityWhenSameSize)
     std::vector<float> pts{100.f, 100.f, 700.f, 500.f};
     std::vector<float> scaled;
 
-    u.ScaleBboxPoints(img, target, pts, scaled);
+    u.scaleBboxPoints(img, target, pts, scaled);
     ASSERT_EQ(scaled.size(), pts.size());
     EXPECT_NEAR(scaled[0], pts[0], 1e-3);
     EXPECT_NEAR(scaled[1], pts[1], 1e-3);
@@ -180,7 +180,7 @@ TEST_F(UtilsScaleBboxPointsTest, ScalesWidthDominant)
     std::vector<float> pts{100.f, 50.f, 500.f, 250.f};
     std::vector<float> scaled;
 
-    u.ScaleBboxPoints(img, target, pts, scaled);
+    u.scaleBboxPoints(img, target, pts, scaled);
     ASSERT_EQ(scaled.size(), pts.size());
     const float scale = target[0] / static_cast<float>(img.cols); // 1200/600 = 2
     EXPECT_NEAR(scaled[0], pts[0] * scale, 1e-3);
@@ -198,7 +198,7 @@ TEST_F(UtilsScaleBboxPointsTest, ScalesHeightDominant)
     std::vector<float> pts{100.f, 50.f, 200.f, 500.f};
     std::vector<float> scaled;
 
-    u.ScaleBboxPoints(img, target, pts, scaled);
+    u.scaleBboxPoints(img, target, pts, scaled);
     ASSERT_EQ(scaled.size(), pts.size());
     const float scale = target[1] / static_cast<float>(img.rows); // 1200/600 = 2
     EXPECT_NEAR(scaled[0], pts[0] * scale, 1e-3);

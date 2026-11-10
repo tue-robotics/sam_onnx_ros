@@ -12,8 +12,8 @@ namespace SEG
 {
 enum class Backend
 {
-    kOnnx,
-    kSpeedSam,
+    ONNX,
+    SPEED_SAM,
 };
 }
 
@@ -35,14 +35,14 @@ public:
     SamWrapper& operator=(SamWrapper&&) noexcept;
 };
 
-std::tuple<SamWrapper, SEG::DL_INIT_PARAM, SEG::DL_INIT_PARAM, SEG::DL_RESULT, std::vector<SEG::DL_RESULT>> Initialize(
+std::tuple<SamWrapper, SEG::DlInitParam, SEG::DlInitParam, SEG::DlResult, std::vector<SEG::DlResult>> initialize(
     const std::filesystem::path& encoder_filename, const std::filesystem::path& decoder_filename, SEG::Backend backend);
 
-void SegmentAnything(SamWrapper& samSegmentors,
-                     const SEG::DL_INIT_PARAM& params_encoder,
-                     const SEG::DL_INIT_PARAM& params_decoder,
+void segmentAnything(SamWrapper& samSegmentors,
+                     const SEG::DlInitParam& params_encoder,
+                     const SEG::DlInitParam& params_decoder,
                      const cv::Mat& img,
-                     std::vector<SEG::DL_RESULT>& resSam,
-                     SEG::DL_RESULT& res);
+                     std::vector<SEG::DlResult>& resSam,
+                     SEG::DlResult& res);
 
 #endif // SAM_ONNX_ROS_SEGMENTATION_HPP_

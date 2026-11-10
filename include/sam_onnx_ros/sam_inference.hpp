@@ -22,25 +22,25 @@ public:
     ~SAM();
 
 public:
-    const char* CreateSession(SEG::DL_INIT_PARAM& iParams);
+    const char* createSession(SEG::DlInitParam& iParams);
 
-    const char* RunSession(const cv::Mat& iImg,
-                           std::vector<SEG::DL_RESULT>& oResult,
+    const char* runSession(const cv::Mat& iImg,
+                           std::vector<SEG::DlResult>& oResult,
                            SEG::MODEL_TYPE modelType,
-                           SEG::DL_RESULT& result);
+                           SEG::DlResult& result);
 
 private:
-    char* WarmUpSession_(SEG::MODEL_TYPE modelType);
+    char* warmUpSession(SEG::MODEL_TYPE modelType);
 
     template <typename N>
-    const char* TensorProcess_(clock_t& starttime_1,
+    const char* tensorProcess(clock_t& starttime_1,
                                const cv::Mat& iImg,
                                N& blob,
                                std::vector<int64_t>& inputNodeDims,
                                SEG::MODEL_TYPE modelType,
-                               std::vector<SEG::DL_RESULT>& oResult,
+                               std::vector<SEG::DlResult>& oResult,
                                Utils& utilities,
-                               SEG::DL_RESULT& result);
+                               SEG::DlResult& result);
 
     Ort::Env env_;
     std::unique_ptr<Ort::Session> session_;

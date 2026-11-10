@@ -49,7 +49,7 @@ protected:
         {
             // Use package helpers to build default params and SAM objects.
             std::tie(samWrapper, params_encoder, params_decoder, res, resSam) =
-                Initialize(encoder_model, decoder_model, SEG::Backend::kOnnx);
+                initialize(encoder_model, decoder_model, SEG::Backend::ONNX);
             models_available_ = true;
         }
         catch (const std::exception& e)
@@ -67,9 +67,9 @@ protected:
     cv::Mat testImage_640x640, testImage_800x600, testImage_realistic;
     std::vector<int> NonSquareImgSize;
     SamWrapper samWrapper;
-    SEG::DL_INIT_PARAM params_encoder, params_decoder;
-    SEG::DL_RESULT res;
-    std::vector<SEG::DL_RESULT> resSam;
+    SEG::DlInitParam params_encoder, params_decoder;
+    SEG::DlResult res;
+    std::vector<SEG::DlResult> resSam;
     bool models_available_ = false;
     std::string missing_models_reason_;
 };
@@ -77,7 +77,7 @@ protected:
 // Simple smoke test: we can construct a SAM object without throwing.
 TEST_F(SamInferenceTest, ObjectCreation)
 {
-    EXPECT_NO_THROW({ SAM localSam; });
+    EXPECT_NO_THROW({ SAM local_sam; });
 }
 
 // Confirms that with a present encoder model we can initialize a session.
@@ -90,7 +90,7 @@ TEST_F(SamInferenceTest, CreateSessionWithValidModel)
         GTEST_SKIP() << missing_models_reason_;
     }
 
-    EXPECT_EQ(samWrapper.samSegmentors.size(), 2u) << "Initialize should create both encoder and decoder sessions";
+    EXPECT_EQ(samWrapper.samSegmentors.size(), 2u) << "initialize() should create both encoder and decoder sessions";
     ASSERT_TRUE(samWrapper.samSegmentors[0]);
     ASSERT_TRUE(samWrapper.samSegmentors[1]);
 }
@@ -103,8 +103,8 @@ TEST_F(SamInferenceTest, CreateSessionWithInvalidModel)
     {
         samWrapper.samSegmentors.push_back(std::make_unique<SAM>());
     }
-    EXPECT_THROW(samWrapper.samSegmentors[0]->CreateSession(params_encoder), std::runtime_error)
-        << "CreateSession should throw an exception with invalid model path";
+    EXPECT_THROW(samWrapper.samSegmentors[0]->createSession(params_encoder), std::runtime_error)
+        << "createSession() should throw an exception with invalid model path";
 }
 
 // End-to-end check: with both encoder/decoder models present, the pipeline runs
@@ -117,7 +117,7 @@ TEST_F(SamInferenceTest, FullInferencePipeline)
         GTEST_SKIP() << missing_models_reason_;
     }
 
-    SegmentAnything(samWrapper, params_encoder, params_decoder, testImage_realistic, resSam, res);
+    segmentAnything(samWrapper, params_encoder, params_decoder, testImage_realistic, resSam, res);
 }
 
 #if !SAM_ONNX_ROS_TENSORRT_ENABLED
@@ -125,22 +125,22 @@ TEST_F(SamInferenceTest, FullInferencePipeline)
 // Needs no models or GPU.
 TEST(SpeedSamBackendTest, InitializeThrowsWithoutTensorRT)
 {
-    EXPECT_THROW(Initialize("./SAM_encoder.onnx", "./SAM_mask_decoder.onnx", SEG::Backend::kSpeedSam),
+    EXPECT_THROW(initialize("./SAM_encoder.onnx", "./SAM_mask_decoder.onnx", SEG::Backend::SPEED_SAM),
                  std::runtime_error)
-        << "Initialize should throw when the SpeedSAM backend is requested without TensorRT support";
+        << "initialize() should throw when the SpeedSAM backend is requested without TensorRT support";
 }
 
 TEST(SpeedSamBackendTest, SegmentAnythingThrowsWithoutTensorRT)
 {
-    SamWrapper samWrapper;
-    samWrapper.backend = SEG::Backend::kSpeedSam;
-    SEG::DL_INIT_PARAM params_encoder, params_decoder;
-    SEG::DL_RESULT res;
-    std::vector<SEG::DL_RESULT> resSam;
+    SamWrapper sam_wrapper;
+    sam_wrapper.backend = SEG::Backend::SPEED_SAM;
+    SEG::DlInitParam params_encoder, params_decoder;
+    SEG::DlResult res;
+    std::vector<SEG::DlResult> res_sam;
     const cv::Mat img = cv::Mat::zeros(640, 640, CV_8UC3);
 
-    EXPECT_THROW(SegmentAnything(samWrapper, params_encoder, params_decoder, img, resSam, res), std::runtime_error)
-        << "SegmentAnything should throw when the SpeedSAM backend is requested without TensorRT support";
+    EXPECT_THROW(segmentAnything(sam_wrapper, params_encoder, params_decoder, img, res_sam, res), std::runtime_error)
+        << "segmentAnything() should throw when the SpeedSAM backend is requested without TensorRT support";
 }
 #else
 // End-to-end check of the SpeedSAM backend: one box prompt gives one mask of the input image size.
@@ -161,15 +161,15 @@ TEST(SpeedSamBackendTest, FullInferencePipeline)
             << "Required models not found in working directory: './SAM_encoder.onnx' and './SAM_mask_decoder.onnx'.";
     }
 
-    auto [samWrapper, params_encoder, params_decoder, res, resSam] =
-        Initialize(encoder_model, decoder_model, SEG::Backend::kSpeedSam);
-    ASSERT_TRUE(samWrapper.speedSam) << "Initialize should create the SpeedSAM backend";
+    auto [sam_wrapper, params_encoder, params_decoder, res, res_sam] =
+        initialize(encoder_model, decoder_model, SEG::Backend::SPEED_SAM);
+    ASSERT_TRUE(sam_wrapper.speedSam) << "initialize() should create the SpeedSAM backend";
 
     cv::Mat img(600, 800, CV_8UC3);
     cv::randu(img, cv::Scalar(0, 0, 0), cv::Scalar(255, 255, 255));
     res.boxes.push_back(cv::Rect(200, 150, 400, 300));
 
-    SegmentAnything(samWrapper, params_encoder, params_decoder, img, resSam, res);
+    segmentAnything(sam_wrapper, params_encoder, params_decoder, img, res_sam, res);
 
     ASSERT_EQ(res.masks.size(), 1u) << "SpeedSAM should return one mask per box";
     EXPECT_EQ(res.masks[0].size(), img.size());

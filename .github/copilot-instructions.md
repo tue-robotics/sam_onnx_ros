@@ -5,7 +5,7 @@
 - Use the Pimpl (Pointer to Implementation) idiom for heavy neural networks to avoid polluting headers (e.g., `SamSegPipeline::Impl`).
 
 ## Architecture
-- **SAM & YOLO Integration**: Both models are dynamically bound and abstracted. `SamWrapper` encapsulates backends (`kOnnx`, `kSpeedSam`).
+- **SAM & YOLO Integration**: Both models are dynamically bound and abstracted. `SamWrapper` encapsulates backends (`ONNX`, `SPEED_SAM`).
 - **Memory Persistence**: Never allocate deep learning inference models per-frame. Models (`YOLO_V8` & `SpeedSam`) are instanced exactly once to prevent high-latency lockups (+60 seconds), and inference occurs separately in `SamSegPipeline::process()`.
 - **Initialization Timing**: Do not block constructors with inference initialization. `SamSegPipeline::initialize()` uses lazy instantiation (called during the first `cluster` trigger segment phase) to avoid freezing ROS tf tree initializations.
 - **Pre-SAM Filtering**: Aggressively filter YOLO outputs *before* passing them to SAM. Bounding boxes are explicitly discarded if they inherently lack 3D depth valid points natively projecting inside the point cloud frustum, or if their class structurally matches an `ignore_label` (e.g. the surface of the `"dining table"` itself).
