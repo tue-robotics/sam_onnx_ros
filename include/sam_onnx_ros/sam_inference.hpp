@@ -21,29 +21,35 @@ public:
 
     ~SAM();
 
-public:
-    const char* CreateSession(SEG::DL_INIT_PARAM& iParams);
+    const char* createSession(SEG::DlInitParam& iParams);
 
-    const char* RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType, SEG::DL_RESULT& result);
+    const char* runSession(const cv::Mat& iImg,
+                           std::vector<SEG::DlResult>& oResult,
+                           SEG::ModelType modelType,
+                           SEG::DlResult& result);
 
 private:
-
-    char* WarmUpSession_(SEG::MODEL_TYPE modelType);
+    char* warmUpSession(SEG::ModelType modelType);
 
     template <typename N>
-    const char* TensorProcess_(clock_t& starttime_1, const cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims,
-                        SEG::MODEL_TYPE modelType, std::vector<SEG::DL_RESULT>& oResult, Utils& utilities, SEG::DL_RESULT& result);
+    const char* tensorProcess(clock_t& starttime_1,
+                              const cv::Mat& iImg,
+                              N& blob,
+                              std::vector<int64_t>& inputNodeDims,
+                              SEG::ModelType modelType,
+                              std::vector<SEG::DlResult>& oResult,
+                              Utils& utilities,
+                              SEG::DlResult& result);
 
     Ort::Env env_;
     std::unique_ptr<Ort::Session> session_;
-    bool cudaEnable_;
+    bool cudaEnable_{false};
     Ort::RunOptions options_;
     std::vector<const char*> inputNodeNames_;
     std::vector<const char*> outputNodeNames_;
 
-    SEG::MODEL_TYPE modelType_;
+    SEG::ModelType modelType_{SEG::ModelType::SAM_SEGMENT_ENCODER};
     std::vector<int> imgSize_;
-    float rectConfidenceThreshold_;
 };
 
 #endif // SAM_ONNX_ROS_SAM_INFERENCE_HPP_

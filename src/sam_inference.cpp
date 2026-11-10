@@ -1,43 +1,61 @@
-#include "sam_onnx_ros/config.hpp"
 #include "sam_onnx_ros/sam_inference.hpp"
+#include "sam_onnx_ros/config.hpp"
+#include "sam_onnx_ros/dl_types.hpp"
 #include "sam_onnx_ros/utils.hpp"
 
+#include <algorithm>
 #include <console_bridge/console.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <ctime>
+#include <exception>
+#include <memory>
+#include <onnxruntime_c_api.h>
+#include <onnxruntime_cxx_api.h>
+#include <opencv2/core/hal/interface.h>
+#include <opencv2/core/mat.hpp>
+#include <opencv2/core/types.hpp>
 #include <regex>
+#include <stdexcept>
+#include <type_traits>
+#include <vector>
 
 #define benchmark
 
-SAM::SAM()
-{
-}
+SAM::SAM() = default;
 
 SAM::~SAM()
 {
-  // Clean up input/output node names
-  for (auto& name : inputNodeNames_)
-  {
-    delete[] name;
-  }
-  for (auto& name : outputNodeNames_)
-  {
-    delete[] name;
-  }
+    // Clean up input/output node names
+    for (auto& name : inputNodeNames_)
+    {
+        delete[] name;
+    }
+    for (auto& name : outputNodeNames_)
+    {
+        delete[] name;
+    }
 }
 
 #if defined(SAM_ONNX_ROS_CUDA_ENABLED) && SAM_ONNX_ROS_CUDA_ENABLED
+#include <cuda_fp16.h>
+
 namespace Ort
 {
-    template <> struct TypeToTensorType<half>
-    {
-        static constexpr ONNXTensorElementDataType type = ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
-    };
+template <> struct TypeToTensorType<half>
+{
+    // The member name is defined by ONNX Runtime
+    static constexpr ONNXTensorElementDataType type = // NOLINT(readability-identifier-naming)
+        ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
+};
 } // namespace Ort
 #endif
 
-const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
+const char* SAM::createSession(SEG::DlInitParam& iParams)
 {
-    const char* Ret = RET_OK;
+    const char* ret = RET_OK;
     if (session_)
     {
         session_.reset(); // Release previous session_
@@ -45,24 +63,24 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
         // Clear node names
         for (auto& name : inputNodeNames_)
         {
-          delete[] name;
+            delete[] name;
         }
         inputNodeNames_.clear();
 
         for (auto& name : outputNodeNames_)
         {
-          delete[] name;
+            delete[] name;
         }
         outputNodeNames_.clear();
     }
 
-    std::regex pattern("[\u4e00-\u9fa5]");
-    bool result = std::regex_search(iParams.modelPath, pattern);
+    std::regex const pattern("[\u4e00-\u9fa5]");
+    bool const result = std::regex_search(iParams.modelPath, pattern);
     if (result)
     {
-        Ret = "[SAM]: Your model path is error. Change your model path without chinese characters.";
-        CONSOLE_BRIDGE_logWarn("%s", Ret);
-        return Ret;
+        ret = "[SAM]: Your model path is error. Change your model path without chinese characters.";
+        CONSOLE_BRIDGE_logWarn("%s", ret);
+        return ret;
     }
 
     try
@@ -71,14 +89,14 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
         modelType_ = iParams.modelType;
         cudaEnable_ = iParams.cudaEnable;
         env_ = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "Sam");
-        Ort::SessionOptions sessionOption;
+        Ort::SessionOptions session_option;
         if (iParams.cudaEnable)
         {
-            OrtCUDAProviderOptions cudaOption;
-            cudaOption.device_id = 0;
+            OrtCUDAProviderOptions cuda_option;
+            cuda_option.device_id = 0;
             try
             {
-                sessionOption.AppendExecutionProvider_CUDA(cudaOption);
+                session_option.AppendExecutionProvider_CUDA(cuda_option);
             }
             catch (const std::exception& e)
             {
@@ -88,29 +106,32 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
             }
         }
 
-        sessionOption.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-        sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
-        sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
+        session_option.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+        session_option.SetIntraOpNumThreads(iParams.intraOpNumThreads);
+        session_option.SetLogSeverityLevel(iParams.logSeverityLevel);
 
-        const char* modelPath = iParams.modelPath.c_str();
+        const char* model_path = iParams.modelPath.c_str();
 
-        session_ = std::make_unique<Ort::Session>(env_, modelPath, sessionOption);
-        Ort::AllocatorWithDefaultOptions allocator;
-        size_t inputNodesNum = session_->GetInputCount();
-        for (size_t i = 0; i < inputNodesNum; ++i)
+        session_ = std::make_unique<Ort::Session>(env_, model_path, session_option);
+        Ort::AllocatorWithDefaultOptions const allocator;
+        size_t const input_nodes_num = session_->GetInputCount();
+        for (size_t i = 0; i < input_nodes_num; ++i)
         {
-            Ort::AllocatedStringPtr input_node_name = session_->GetInputNameAllocated(i, allocator);
-            char* temp_buf = new char[50];
-            strcpy(temp_buf, input_node_name.get());
+            Ort::AllocatedStringPtr const input_node_name = session_->GetInputNameAllocated(i, allocator);
+            // Copy the whole name, a fixed-size buffer overflows on long node names
+            const size_t name_size = std::strlen(input_node_name.get()) + 1;
+            char* temp_buf = new char[name_size];
+            std::copy_n(input_node_name.get(), name_size, temp_buf);
             inputNodeNames_.push_back(temp_buf);
         }
 
-        size_t OutputNodesNum = session_->GetOutputCount();
-        for (size_t i = 0; i < OutputNodesNum; ++i)
+        size_t const output_nodes_num = session_->GetOutputCount();
+        for (size_t i = 0; i < output_nodes_num; ++i)
         {
-            Ort::AllocatedStringPtr output_node_name = session_->GetOutputNameAllocated(i, allocator);
-            char* temp_buf = new char[50];
-            strcpy(temp_buf, output_node_name.get());
+            Ort::AllocatedStringPtr const output_node_name = session_->GetOutputNameAllocated(i, allocator);
+            const size_t name_size = std::strlen(output_node_name.get()) + 1;
+            char* temp_buf = new char[name_size];
+            std::copy_n(output_node_name.get(), name_size, temp_buf);
             outputNodeNames_.push_back(temp_buf);
         }
 
@@ -121,303 +142,332 @@ const char* SAM::CreateSession(SEG::DL_INIT_PARAM& iParams)
         // auto output_shape = session_->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
         // auto output_type = session_->GetOutputTypeInfo(0).GetTensorTypeAndShapeInfo().GetElementType();
 
-        WarmUpSession_(modelType_);
+        warmUpSession(modelType_);
         return RET_OK;
     }
     catch (const std::exception& e)
     {
-        std::string error_msg = "[SAM]: Failed to create session: " + std::string(e.what());
+        std::string const error_msg = "[SAM]: Failed to create session: " + std::string(e.what());
         CONSOLE_BRIDGE_logWarn("%s", error_msg.c_str());
         throw std::runtime_error(error_msg);
     }
 }
 
-const char* SAM::RunSession(const cv::Mat& iImg, std::vector<SEG::DL_RESULT>& oResult, SEG::MODEL_TYPE modelType, SEG::DL_RESULT& result)
+const char* SAM::runSession(const cv::Mat& iImg,
+                            std::vector<SEG::DlResult>& oResult,
+                            SEG::ModelType modelType,
+                            SEG::DlResult& result)
 {
-    #ifdef benchmark
+#ifdef benchmark
     clock_t starttime_1 = clock();
-    #endif
+#endif
     Utils utilities;
-    const char* Ret = RET_OK;
-    cv::Mat processedImg;
-    utilities.PreProcess(iImg, imgSize_, processedImg);
+    const char* ret = RET_OK;
+    cv::Mat processed_img;
+    utilities.preProcess(iImg, imgSize_, processed_img);
 
-    if (modelType < 4)
+    auto* blob = new float[processed_img.total() * 3];
+    utilities.blobFromImage(processed_img, blob);
+    std::vector<int64_t> input_node_dims;
+    if (modelType == SEG::ModelType::SAM_SEGMENT_ENCODER)
     {
-        float* blob = new float[processedImg.total() * 3];
-        utilities.BlobFromImage(processedImg, blob);
-        std::vector<int64_t> inputNodeDims;
-        if (modelType == SEG::SAM_SEGMENT_ENCODER)
-        {
-            // NCHW with H=imgSize[1], W=imgSize[0]
-            inputNodeDims = { 1, 3, imgSize_.at(1), imgSize_.at(0) };
-        }
-        else if (modelType == SEG::SAM_SEGMENT_DECODER)
-        {
-            inputNodeDims = { 1, 256, 64, 64 };
-        }
-
-        TensorProcess_(starttime_1, iImg, blob, inputNodeDims, modelType, oResult, utilities, result);
+        // NCHW with H=imgSize[1], W=imgSize[0]
+        input_node_dims = {1, 3, imgSize_.at(1), imgSize_.at(0)};
+    }
+    else if (modelType == SEG::ModelType::SAM_SEGMENT_DECODER)
+    {
+        input_node_dims = {1, 256, 64, 64};
     }
 
+    tensorProcess(starttime_1, iImg, blob, input_node_dims, modelType, oResult, utilities, result);
+
     // ...existing code...
-    return Ret;
+    return ret;
 }
 
 template <typename N>
-const char* SAM::TensorProcess_(clock_t& starttime_1, const cv::Mat& iImg,
-                               N& blob, std::vector<int64_t>& inputNodeDims,
-                               SEG::MODEL_TYPE _modelType,
-                               std::vector<SEG::DL_RESULT>& oResult,
-                               Utils& utilities, SEG::DL_RESULT& result)
+const char* SAM::tensorProcess(clock_t& starttime_1,
+                               const cv::Mat& iImg,
+                               N& blob,
+                               std::vector<int64_t>& inputNodeDims,
+                               SEG::ModelType _modelType,
+                               std::vector<SEG::DlResult>& oResult,
+                               Utils& utilities,
+                               SEG::DlResult& result)
 {
     switch (_modelType)
     {
-        case SEG::SAM_SEGMENT_ENCODER:
+    case SEG::ModelType::SAM_SEGMENT_ENCODER:
         // case OTHER_SAM_MODEL:
         {
-            Ort::Value inputTensor =
-                Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    blob, 3 * imgSize_.at(0) * imgSize_.at(1), inputNodeDims.data(),
-                    inputNodeDims.size());
+            Ort::Value const input_tensor = Ort::Value::CreateTensor<std::remove_pointer_t<N>>(
+                Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                blob,
+                3 * imgSize_.at(0) * imgSize_.at(1),
+                inputNodeDims.data(),
+                inputNodeDims.size());
 
-            #ifdef benchmark
-            clock_t starttime_2 = clock();
-            #endif // benchmark
+#ifdef benchmark
+            clock_t const starttime_2 = clock();
+#endif // benchmark
 
-            auto outputTensor =
-                session_->Run(options_, inputNodeNames_.data(), &inputTensor, 1,
-                       outputNodeNames_.data(), outputNodeNames_.size());
-            #ifdef benchmark
-            clock_t starttime_3 = clock();
-            #endif // benchmark
+            auto output_tensor = session_->Run(
+                options_, inputNodeNames_.data(), &input_tensor, 1, outputNodeNames_.data(), outputNodeNames_.size());
+#ifdef benchmark
+            clock_t const starttime_3 = clock();
+#endif // benchmark
 
-            Ort::TypeInfo typeInfo = outputTensor.front().GetTypeInfo();
-            auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
-            std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
-            auto output =
-                outputTensor.front()
-                    .GetTensorMutableData<typename std::remove_pointer<N>::type>();
+            Ort::TypeInfo const type_info = output_tensor.front().GetTypeInfo();
+            auto tensor_info = type_info.GetTensorTypeAndShapeInfo();
+            std::vector<int64_t> output_node_dims = tensor_info.GetShape();
+            auto output = output_tensor.front().GetTensorMutableData<std::remove_pointer_t<N>>();
             delete[] blob;
 
-            int embeddingSize = outputNodeDims[1] * outputNodeDims[2] * outputNodeDims[3]; // Flattened size
-            result.embeddings.assign(output, output + embeddingSize); // Save embeddings
+            int64_t const embedding_size =
+                output_node_dims[1] * output_node_dims[2] * output_node_dims[3]; // Flattened size
+            result.embeddings.assign(output, output + embedding_size); // Save embeddings
 
-            #ifdef benchmark
-            clock_t starttime_4 = clock();
-            double pre_process_time = static_cast<double>(starttime_2 - starttime_1) / CLOCKS_PER_SEC * 1000;
-            double process_time = static_cast<double>(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
-            double post_process_time = static_cast<double>(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
+#ifdef benchmark
+            clock_t const starttime_4 = clock();
+            double const pre_process_time = static_cast<double>(starttime_2 - starttime_1) / CLOCKS_PER_SEC * 1000;
+            double const process_time = static_cast<double>(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
+            double const post_process_time = static_cast<double>(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
             if (cudaEnable_)
             {
-                CONSOLE_BRIDGE_logInform("[SAM_encoder(CUDA)]: %.2fms pre-process, %.2fms inference, %.2fms post-process.",
-                                         pre_process_time, process_time, post_process_time);
+                CONSOLE_BRIDGE_logInform(
+                    "[SAM_encoder(CUDA)]: %.2fms pre-process, %.2fms inference, %.2fms post-process.",
+                    pre_process_time,
+                    process_time,
+                    post_process_time);
             }
             else
             {
-                CONSOLE_BRIDGE_logInform("[SAM_encoder(CPU)]: %.2fms pre-process, %.2fms inference, %.2fms post-process.",
-                                   pre_process_time, process_time, post_process_time);
+                CONSOLE_BRIDGE_logInform(
+                    "[SAM_encoder(CPU)]: %.2fms pre-process, %.2fms inference, %.2fms post-process.",
+                    pre_process_time,
+                    process_time,
+                    post_process_time);
             }
-            #endif // benchmark
+#endif // benchmark
             break;
         }
-        case SEG::SAM_SEGMENT_DECODER:
+    case SEG::ModelType::SAM_SEGMENT_DECODER:
+    {
+        // Use embeddings from the last result
+        std::vector<float> embeddings = result.embeddings;
+        // Create tensor for decoder
+        std::vector<int64_t> decoder_input_dims = {1, 256, 64, 64}; // Adjust based on your decoder's requirements
+
+#ifdef benchmark
+        clock_t starttime_2 = 0;
+        clock_t starttime_3 = 0;
+#endif // benchmark
+
+        for (const auto& box : result.boxes)
         {
-            // Use embeddings from the last result
-            std::vector<float> embeddings = result.embeddings;
-            // Create tensor for decoder
-            std::vector<int64_t> decoderInputDims = {1, 256, 64, 64}; // Adjust based on your decoder's requirements
+            Ort::Value decoder_input_tensor =
+                Ort::Value::CreateTensor<float>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                                                embeddings.data(), // Use the embeddings from the encoder
+                                                embeddings.size(), // Total number of elements
+                                                decoder_input_dims.data(),
+                                                decoder_input_dims.size());
 
-            #ifdef benchmark
-            clock_t starttime_2 = 0;
-            clock_t starttime_3 = 0;
-            #endif // benchmark
+            // Use center of bounding box as foreground point
+            // float centerX = box.x + box.width / 2.0;
+            // float centerY = box.y + box.height / 2.0;
 
-            for (const auto& box : result.boxes)
-            {
-                Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    embeddings.data(), // Use the embeddings from the encoder
-                    embeddings.size(), // Total number of elements
-                    decoderInputDims.data(), decoderInputDims.size());
+            // Convert bounding box to points
+            std::vector<float> point_coords = {
+                static_cast<float>(box.x),
+                static_cast<float>(box.y), // Top-left
+                static_cast<float>(box.x + box.width),
+                static_cast<float>(box.y + box.height) // Bottom-right
+            };
 
-                // Use center of bounding box as foreground point
-                // float centerX = box.x + box.width / 2.0;
-                // float centerY = box.y + box.height / 2.0;
+            std::vector<float> point_coords_scaled;
 
-                // Convert bounding box to points
-                std::vector<float> pointCoords = {
-                    static_cast<float>(box.x),
-                    static_cast<float>(box.y), // Top-left
-                    static_cast<float>(box.x + box.width),
-                    static_cast<float>(box.y + box.height) // Bottom-right
-                };
+            std::vector<int64_t> const point_coords_dims = {1, 2, 2}; // 2 points, each with (x, y)
 
-                std::vector<float> pointCoordsScaled;
+            // Labels for the points
+            std::vector<float> point_labels = {2.0f, 3.0f}; // Box prompt labels
+            std::vector<int64_t> const point_labels_dims = {1, 2};
 
-                std::vector<int64_t> pointCoordsDims = {1, 2, 2}; // 2 points, each with (x, y)
+            // Create dummy mask_input and has_mask_input
+            std::vector<float> mask_input(static_cast<size_t>(256 * 256), 0.0F); // Fill with zeros
+            std::vector<int64_t> const mask_input_dims = {1, 1, 256, 256};
 
-                // Labels for the points
-                std::vector<float> pointLabels = {2.0f, 3.0f}; // Box prompt labels
-                std::vector<int64_t> pointLabelsDims = {1, 2};
+            std::vector<float> has_mask_input = {0.0f}; // No mask provided
+            std::vector<int64_t> const has_mask_input_dims = {1};
 
-                // Create dummy mask_input and has_mask_input
-                std::vector<float> maskInput(256 * 256, 0.0f); // Fill with zeros
-                std::vector<int64_t> maskInputDims = {1, 1, 256, 256};
+            utilities.scaleBboxPoints(iImg, imgSize_, point_coords, point_coords_scaled);
 
-                std::vector<float> hasMaskInput = {0.0f}; // No mask provided
-                std::vector<int64_t> hasMaskInputDims = {1};
+            std::vector<Ort::Value> input_tensors = Utils::prepareInputTensor(decoder_input_tensor,
+                                                                              point_coords_scaled,
+                                                                              point_coords_dims,
+                                                                              point_labels,
+                                                                              point_labels_dims,
+                                                                              mask_input,
+                                                                              mask_input_dims,
+                                                                              has_mask_input,
+                                                                              has_mask_input_dims);
 
-                utilities.ScaleBboxPoints(iImg, imgSize_, pointCoords, pointCoordsScaled);
+#ifdef benchmark
+            starttime_2 = clock();
+#endif // benchmark
+            auto output_tensors = session_->Run(options_,
+                                                inputNodeNames_.data(),
+                                                input_tensors.data(),
+                                                input_tensors.size(),
+                                                outputNodeNames_.data(),
+                                                outputNodeNames_.size());
 
-                std::vector<Ort::Value> inputTensors = utilities.PrepareInputTensor(
-                    decoderInputTensor, pointCoordsScaled, pointCoordsDims, pointLabels,
-                    pointLabelsDims, maskInput, maskInputDims, hasMaskInput,
-                    hasMaskInputDims);
+#ifdef benchmark
+            starttime_3 = clock();
+#endif // benchmark
 
-                #ifdef benchmark
-                starttime_2 = clock();
-                #endif // benchmark
-                auto output_tensors = session_->Run(
-                    options_, inputNodeNames_.data(), inputTensors.data(),
-                    inputTensors.size(), outputNodeNames_.data(), outputNodeNames_.size());
-
-                #ifdef benchmark
-                starttime_3 = clock();
-                #endif // benchmark
-
-                utilities.PostProcess(output_tensors, iImg, imgSize_, result);
-            }
-
-            // Add the result to oResult
-            oResult.push_back(result);
-
-            delete[] blob;
-
-            #ifdef benchmark
-            clock_t starttime_4 = clock();
-            double pre_process_time = static_cast<double>(starttime_2 - starttime_1) / CLOCKS_PER_SEC * 1000;
-            double process_time = static_cast<double>(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
-            double post_process_time = static_cast<double>(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
-            if (cudaEnable_)
-            {
-                CONSOLE_BRIDGE_logInform("[SAM_decoder(CUDA)]: %.2fms pre-process, %.2fms inference, %.2fms post-process.",
-                                     pre_process_time, process_time, post_process_time);
-            }
-            else
-            {
-                CONSOLE_BRIDGE_logInform("[SAM_decoder(CPU)]: %.2fms pre-process, %.2fms inference, %.2fms post-process.",
-                                     pre_process_time, process_time, post_process_time);
-            }
-            #endif // benchmark
-            break;
+            Utils::postProcess(output_tensors, iImg, imgSize_, result);
         }
-    default:
-        CONSOLE_BRIDGE_logError("[SAM]: Unsupported model type.");
-  }
 
-  return RET_OK;
+        // Add the result to oResult
+        oResult.push_back(result);
+
+        delete[] blob;
+
+#ifdef benchmark
+        clock_t const starttime_4 = clock();
+        double const pre_process_time = static_cast<double>(starttime_2 - starttime_1) / CLOCKS_PER_SEC * 1000;
+        double const process_time = static_cast<double>(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
+        double const post_process_time = static_cast<double>(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
+        if (cudaEnable_)
+        {
+            CONSOLE_BRIDGE_logInform("[SAM_decoder(CUDA)]: %.2fms pre-process, %.2fms inference, %.2fms post-process.",
+                                     pre_process_time,
+                                     process_time,
+                                     post_process_time);
+        }
+        else
+        {
+            CONSOLE_BRIDGE_logInform("[SAM_decoder(CPU)]: %.2fms pre-process, %.2fms inference, %.2fms post-process.",
+                                     pre_process_time,
+                                     process_time,
+                                     post_process_time);
+        }
+#endif // benchmark
+        break;
+    }
+    default: CONSOLE_BRIDGE_logError("[SAM]: Unsupported model type.");
+    }
+
+    return RET_OK;
 }
 
-char* SAM::WarmUpSession_(SEG::MODEL_TYPE modelType)
+char* SAM::warmUpSession(SEG::ModelType modelType)
 {
-    clock_t starttime_1 = clock();
+    clock_t const starttime_1 = clock();
     Utils utilities;
-    cv::Mat iImg = cv::Mat(cv::Size(imgSize_.at(0), imgSize_.at(1)), CV_8UC3);
-    cv::Mat processedImg;
-    utilities.PreProcess(iImg, imgSize_, processedImg);
-    if (modelType < 4)
+    cv::Mat const i_img = cv::Mat(cv::Size(imgSize_.at(0), imgSize_.at(1)), CV_8UC3);
+    cv::Mat processed_img;
+    utilities.preProcess(i_img, imgSize_, processed_img);
+    auto* blob = new float[i_img.total() * 3];
+    utilities.blobFromImage(processed_img, blob);
+    // NCHW: H=imgSize[1], W=imgSize[0]
+    std::vector<int64_t> sam_input_node_dims = {1, 3, imgSize_.at(1), imgSize_.at(0)};
+    switch (modelType)
     {
-        float* blob = new float[iImg.total() * 3];
-        utilities.BlobFromImage(processedImg, blob);
-        // NCHW: H=imgSize[1], W=imgSize[0]
-        std::vector<int64_t> SAM_input_node_dims = { 1, 3, imgSize_.at(1), imgSize_.at(0) };
-        switch (modelType)
+    case SEG::ModelType::SAM_SEGMENT_ENCODER:
+    {
+        Ort::Value const input_tensor = Ort::Value::CreateTensor<float>(
+            Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+            blob,
+            3 * static_cast<size_t>(imgSize_.at(0)) * static_cast<size_t>(imgSize_.at(1)),
+            sam_input_node_dims.data(),
+            sam_input_node_dims.size());
+        auto output_tensors = session_->Run(
+            options_, inputNodeNames_.data(), &input_tensor, 1, outputNodeNames_.data(), outputNodeNames_.size());
+        delete[] blob;
+        clock_t const starttime_4 = clock();
+        double const post_process_time = static_cast<double>(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
+        if (cudaEnable_)
         {
-            case SEG::SAM_SEGMENT_ENCODER:
-            {
-                Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-                    Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                    blob, 3 * imgSize_.at(0) * imgSize_.at(1),
-                    SAM_input_node_dims.data(), SAM_input_node_dims.size());
-                auto output_tensors = session_->Run(options_, inputNodeNames_.data(), &input_tensor, 1,
-                                                outputNodeNames_.data(), outputNodeNames_.size());
-                delete[] blob;
-                clock_t starttime_4 = clock();
-                double post_process_time = static_cast<double>(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
-                if (cudaEnable_)
-                {
-                    CONSOLE_BRIDGE_logInform("[SAM(CUDA)]: Cuda warm-up cost %.2f ms.", post_process_time);
-                }
-
-                break;
-            }
-
-            case SEG::SAM_SEGMENT_DECODER:
-            {
-                std::vector<int64_t> inputNodeDims = {1, 256, 64, 64}; // BUG: That was 236 instead of 256
-                // Use embeddings from the last result
-                std::vector<float> dummyEmbeddings(256 * 64 * 64, 1.0f); // Fill with zeros or any dummy values
-                std::vector<int64_t> decoderInputDims = {1, 256, 64, 64}; // Adjust based on your decoder's requirements
-
-                // Create dummy point coordinates and labels
-                std::vector<cv::Rect> boundingBoxes = {
-                    cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
-                    // cv::Rect(0, 0, 473, 359) // Another example bounding box
-                };
-                for (const auto& bbox : boundingBoxes)
-                {
-                    Ort::Value decoderInputTensor = Ort::Value::CreateTensor<float>(
-                        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-                        dummyEmbeddings.data(), // Use the embeddings from the encoder
-                        dummyEmbeddings.size(), // Total number of elements
-                        decoderInputDims.data(), decoderInputDims.size());
-
-                    // Convert bounding box to points
-                    // Use center of bounding box as foreground point
-                    float centerX = bbox.x + bbox.width / 2.0;
-                    float centerY = bbox.y + bbox.height / 2.0;
-
-                    std::vector<float> pointCoords = {centerX, centerY}; // Center point (foreground)
-
-                    std::vector<int64_t> pointCoordsDims = {1, 1, 2}; // 2 points, each with (x, y)
-
-                    std::vector<float> pointCoordsScaled;
-
-                    utilities.ScaleBboxPoints(iImg, imgSize_, pointCoords, pointCoordsScaled);
-
-                    // Labels for the points
-                    std::vector<float> pointLabels = {1.0f}; // All points are foreground
-                    std::vector<int64_t> pointLabelsDims = {1, 1};
-
-                    // Create dummy mask_input and has_mask_input
-                    std::vector<float> maskInput(256 * 256, 0.0f); // Fill with zeros
-                    std::vector<int64_t> maskInputDims = {1, 1, 256, 256};
-                    std::vector<float> hasMaskInput = {0.0f}; // No mask provided
-                    std::vector<int64_t> hasMaskInputDims = {1};
-
-                    std::vector<Ort::Value> inputTensors = utilities.PrepareInputTensor(
-                        decoderInputTensor, pointCoordsScaled, pointCoordsDims, pointLabels,
-                        pointLabelsDims, maskInput, maskInputDims, hasMaskInput,
-                        hasMaskInputDims);
-
-                    auto output_tensors = session_->Run(
-                        options_, inputNodeNames_.data(), inputTensors.data(),
-                        inputTensors.size(), outputNodeNames_.data(), outputNodeNames_.size());
-                }
-
-                delete[] blob;
-                clock_t starttime_4 = clock();
-                double post_process_time = static_cast<double>(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
-                if (cudaEnable_)
-                {
-                    CONSOLE_BRIDGE_logInform("[SAM(CUDA)]: Cuda warm-up cost %.2f ms.", post_process_time);
-                }
-
-                break;
-            }
+            CONSOLE_BRIDGE_logInform("[SAM(CUDA)]: Cuda warm-up cost %.2f ms.", post_process_time);
         }
+
+        break;
+    }
+
+    case SEG::ModelType::SAM_SEGMENT_DECODER:
+    {
+        std::vector<int64_t> const input_node_dims = {1, 256, 64, 64}; // BUG: That was 236 instead of 256
+        // Use embeddings from the last result
+        std::vector<float> dummy_embeddings(static_cast<size_t>(256 * 64 * 64),
+                                            1.0F); // Fill with zeros or any dummy values
+        std::vector<int64_t> decoder_input_dims = {1, 256, 64, 64}; // Adjust based on your decoder's requirements
+
+        // Create dummy point coordinates and labels
+        std::vector<cv::Rect> const bounding_boxes = {
+            cv::Rect(0, 0, 100, 100), // Example bounding box with (x, y, width, height)
+            // cv::Rect(0, 0, 473, 359) // Another example bounding box
+        };
+        for (const auto& bbox : bounding_boxes)
+        {
+            Ort::Value decoder_input_tensor =
+                Ort::Value::CreateTensor<float>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                                                dummy_embeddings.data(), // Use the embeddings from the encoder
+                                                dummy_embeddings.size(), // Total number of elements
+                                                decoder_input_dims.data(),
+                                                decoder_input_dims.size());
+
+            // Convert bounding box to points
+            // Use center of bounding box as foreground point
+            float const center_x = static_cast<float>(bbox.x) + (static_cast<float>(bbox.width) / 2.0F);
+            float const center_y = static_cast<float>(bbox.y) + (static_cast<float>(bbox.height) / 2.0F);
+
+            std::vector<float> point_coords = {center_x, center_y}; // Center point (foreground)
+
+            std::vector<int64_t> const point_coords_dims = {1, 1, 2}; // 2 points, each with (x, y)
+
+            std::vector<float> point_coords_scaled;
+
+            utilities.scaleBboxPoints(i_img, imgSize_, point_coords, point_coords_scaled);
+
+            // Labels for the points
+            std::vector<float> point_labels = {1.0f}; // All points are foreground
+            std::vector<int64_t> const point_labels_dims = {1, 1};
+
+            // Create dummy mask_input and has_mask_input
+            std::vector<float> mask_input(static_cast<size_t>(256 * 256), 0.0F); // Fill with zeros
+            std::vector<int64_t> const mask_input_dims = {1, 1, 256, 256};
+            std::vector<float> has_mask_input = {0.0f}; // No mask provided
+            std::vector<int64_t> const has_mask_input_dims = {1};
+
+            std::vector<Ort::Value> input_tensors = Utils::prepareInputTensor(decoder_input_tensor,
+                                                                              point_coords_scaled,
+                                                                              point_coords_dims,
+                                                                              point_labels,
+                                                                              point_labels_dims,
+                                                                              mask_input,
+                                                                              mask_input_dims,
+                                                                              has_mask_input,
+                                                                              has_mask_input_dims);
+
+            auto output_tensors = session_->Run(options_,
+                                                inputNodeNames_.data(),
+                                                input_tensors.data(),
+                                                input_tensors.size(),
+                                                outputNodeNames_.data(),
+                                                outputNodeNames_.size());
+        }
+
+        delete[] blob;
+        clock_t const starttime_4 = clock();
+        double const post_process_time = static_cast<double>(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
+        if (cudaEnable_)
+        {
+            CONSOLE_BRIDGE_logInform("[SAM(CUDA)]: Cuda warm-up cost %.2f ms.", post_process_time);
+        }
+
+        break;
+    }
     }
 
     return RET_OK;
