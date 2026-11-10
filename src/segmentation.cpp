@@ -1,7 +1,16 @@
 #include "sam_onnx_ros/segmentation.hpp"
 #include "sam_onnx_ros/config.hpp"
+#include "sam_onnx_ros/dl_types.hpp"
+#include "sam_onnx_ros/sam_inference.hpp"
+#include <filesystem>
+#include <memory>
+#include <opencv2/core/mat.hpp>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #if SAM_ONNX_ROS_TENSORRT_ENABLED
+#include <opencv2/core/types.hpp>
 #include <speedSam.h>
 #else
 // Never instantiated, but SamWrapper's std::unique_ptr<SpeedSam> needs a complete type to be destructible
@@ -12,7 +21,7 @@ class SpeedSam
 
 #include <stdexcept>
 
-SamWrapper::SamWrapper() : backend(SEG::Backend::ONNX) {}
+SamWrapper::SamWrapper() = default;
 SamWrapper::~SamWrapper() = default;
 SamWrapper::SamWrapper(SamWrapper&&) noexcept = default;
 SamWrapper& SamWrapper::operator=(SamWrapper&&) noexcept = default;
@@ -25,13 +34,13 @@ std::tuple<SamWrapper, SEG::DlInitParam, SEG::DlInitParam, SEG::DlResult, std::v
 
     SEG::DlInitParam params_encoder;
     SEG::DlInitParam params_decoder;
-    SEG::DlResult res;
-    std::vector<SEG::DlResult> res_sam;
+    SEG::DlResult const res;
+    std::vector<SEG::DlResult> const res_sam;
 
     params_encoder.modelPath = encoder_filename.string();
     params_encoder.imgSize = {1024, 1024};
     params_decoder = params_encoder;
-    params_decoder.modelType = SEG::SAM_SEGMENT_DECODER;
+    params_decoder.modelType = SEG::ModelType::SAM_SEGMENT_DECODER;
     params_decoder.modelPath = decoder_filename.string();
 
     if (backend == SEG::Backend::ONNX)
@@ -85,7 +94,7 @@ void segmentAnything(SamWrapper& samWrapper,
                 "segmentAnything: ONNX backend requires 2 initialized SAM sessions (encoder + decoder).");
         }
 
-        SEG::MODEL_TYPE model_type_ref = params_encoder.modelType;
+        SEG::ModelType model_type_ref = params_encoder.modelType;
         samWrapper.samSegmentors[0]->runSession(img, resSam, model_type_ref, res);
 
         model_type_ref = params_decoder.modelType;
@@ -100,13 +109,15 @@ void segmentAnything(SamWrapper& samWrapper,
 
         res.masks.clear();
 
-        samWrapper.speedSam->setTemplateImage(const_cast<cv::Mat&>(img));
+        // setTemplateImage takes a non-const reference; a cv::Mat copy only copies the header, not the pixels
+        cv::Mat template_image = img;
+        samWrapper.speedSam->setTemplateImage(template_image);
 
         for (const auto& box : res.boxes)
         {
-            std::vector<cv::Point> bboxPoints = {cv::Point(box.x, box.y),
-                                                 cv::Point(box.x + box.width, box.y + box.height)};
-            cv::Mat mask = samWrapper.speedSam->predictFromTemplate(bboxPoints, {2.0f, 3.0f});
+            std::vector<cv::Point> const bbox_points = {cv::Point(box.x, box.y),
+                                                        cv::Point(box.x + box.width, box.y + box.height)};
+            cv::Mat const mask = samWrapper.speedSam->predictFromTemplate(bbox_points, {2.0F, 3.0F});
 
             res.masks.push_back(mask);
         }

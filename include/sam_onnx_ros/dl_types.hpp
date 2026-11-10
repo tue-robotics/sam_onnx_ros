@@ -9,7 +9,7 @@
 
 namespace SEG
 {
-enum MODEL_TYPE
+enum class ModelType : std::uint8_t
 {
     SAM_SEGMENT_ENCODER = 1,
     SAM_SEGMENT_DECODER = 2,
@@ -19,7 +19,7 @@ struct DlInitParam
 {
     // Yolo & Common Part
     std::string modelPath;
-    MODEL_TYPE modelType = SAM_SEGMENT_ENCODER;
+    ModelType modelType = ModelType::SAM_SEGMENT_ENCODER;
     std::vector<int> imgSize = {640, 640};
     bool cudaEnable = false;
     int logSeverityLevel = 3;
@@ -29,7 +29,7 @@ struct DlInitParam
     friend std::ostream& operator<<(std::ostream& os, const DlInitParam& param)
     {
         os << "modelPath: " << param.modelPath << "\n";
-        os << "modelType: " << param.modelType << "\n";
+        os << "modelType: " << static_cast<int>(param.modelType) << "\n";
         os << "imgSize: ";
         for (const auto& size : param.imgSize)
             os << size << " ";
@@ -39,7 +39,6 @@ struct DlInitParam
         os << "intraOpNumThreads: " << param.intraOpNumThreads;
         return os;
     }
-
 };
 
 struct DlResult
@@ -48,7 +47,6 @@ struct DlResult
     std::vector<cv::Rect> boxes;
     std::vector<float> embeddings;
     std::vector<cv::Mat> masks;
-
 };
 
 } // namespace SEG

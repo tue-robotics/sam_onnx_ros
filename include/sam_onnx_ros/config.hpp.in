@@ -1,8 +1,11 @@
 #ifndef SAM_ONNX_ROS_CONFIG_HPP_
 #define SAM_ONNX_ROS_CONFIG_HPP_
 
+// These have to be macros, they are used in #if
+// NOLINTBEGIN(cppcoreguidelines-macro-to-enum,modernize-macro-to-enum)
 #define SAM_ONNX_FALSE 0
 #define SAM_ONNX_TRUE 1
+// NOLINTEND(cppcoreguidelines-macro-to-enum,modernize-macro-to-enum)
 #define SAM_ONNX_ROS_CUDA_ENABLED SAM_ONNX_@sam_onnx_ros_CUDA_ENABLED@
 #define SAM_ONNX_ROS_TENSORRT_ENABLED SAM_ONNX_@sam_onnx_ros_TENSORRT_ENABLED@
 

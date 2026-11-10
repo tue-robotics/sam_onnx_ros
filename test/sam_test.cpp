@@ -1,12 +1,20 @@
+#include "sam_onnx_ros/config.hpp"
 #include "sam_onnx_ros/dl_types.hpp"
 #include "sam_onnx_ros/sam_inference.hpp"
 #include "sam_onnx_ros/segmentation.hpp"
+#include "sam_onnx_ros/utils.hpp"
 
+#include <exception>
 #include <gtest/gtest.h>
-#include <opencv2/opencv.hpp>
+#include <memory>
+#include <opencv2/core.hpp>
+#include <opencv2/core/hal/interface.h>
 
 #include <filesystem>
+#include <stdexcept>
 #include <string>
+#include <tuple>
+#include <vector>
 
 #if SAM_ONNX_ROS_TENSORRT_ENABLED
 #include <cuda_runtime_api.h>
@@ -77,7 +85,7 @@ protected:
 // Simple smoke test: we can construct a SAM object without throwing.
 TEST_F(SamInferenceTest, ObjectCreation)
 {
-    EXPECT_NO_THROW({ SAM local_sam; });
+    EXPECT_NO_THROW({ const SAM local_sam; });
 }
 
 // Confirms that with a present encoder model we can initialize a session.
@@ -134,7 +142,8 @@ TEST(SpeedSamBackendTest, SegmentAnythingThrowsWithoutTensorRT)
 {
     SamWrapper sam_wrapper;
     sam_wrapper.backend = SEG::Backend::SPEED_SAM;
-    SEG::DlInitParam params_encoder, params_decoder;
+    SEG::DlInitParam const params_encoder;
+    SEG::DlInitParam const params_decoder;
     SEG::DlResult res;
     std::vector<SEG::DlResult> res_sam;
     const cv::Mat img = cv::Mat::zeros(640, 640, CV_8UC3);
@@ -167,7 +176,7 @@ TEST(SpeedSamBackendTest, FullInferencePipeline)
 
     cv::Mat img(600, 800, CV_8UC3);
     cv::randu(img, cv::Scalar(0, 0, 0), cv::Scalar(255, 255, 255));
-    res.boxes.push_back(cv::Rect(200, 150, 400, 300));
+    res.boxes.emplace_back(200, 150, 400, 300);
 
     segmentAnything(sam_wrapper, params_encoder, params_decoder, img, res_sam, res);
 

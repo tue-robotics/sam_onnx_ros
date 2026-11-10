@@ -10,7 +10,7 @@
 
 namespace SEG
 {
-enum class Backend
+enum class Backend : std::uint8_t
 {
     ONNX,
     SPEED_SAM,
@@ -23,7 +23,7 @@ class SpeedSam;
 class SamWrapper
 {
 public:
-    SEG::Backend backend;
+    SEG::Backend backend{SEG::Backend::ONNX};
     std::vector<std::unique_ptr<SAM>> samSegmentors;
     // Only set for the SpeedSAM backend, which requires TensorRT support at compile time
     std::unique_ptr<SpeedSam> speedSam;
@@ -38,7 +38,7 @@ public:
 std::tuple<SamWrapper, SEG::DlInitParam, SEG::DlInitParam, SEG::DlResult, std::vector<SEG::DlResult>> initialize(
     const std::filesystem::path& encoder_filename, const std::filesystem::path& decoder_filename, SEG::Backend backend);
 
-void segmentAnything(SamWrapper& samSegmentors,
+void segmentAnything(SamWrapper& samWrapper,
                      const SEG::DlInitParam& params_encoder,
                      const SEG::DlInitParam& params_decoder,
                      const cv::Mat& img,

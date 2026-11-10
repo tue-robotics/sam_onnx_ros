@@ -1,12 +1,23 @@
 #include "sam_onnx_ros/utils.hpp"
+#include "sam_onnx_ros/dl_types.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <console_bridge/console.h>
+#include <cstddef>
+#include <cstdint>
+#include <onnxruntime_c_api.h>
+#include <onnxruntime_cxx_api.h>
+#include <opencv2/core.hpp>
+#include <opencv2/core/base.hpp>
+#include <opencv2/core/hal/interface.h>
+#include <opencv2/core/mat.hpp>
+#include <opencv2/imgproc.hpp>
+#include <utility>
+#include <vector>
 
 // Constructor
-Utils::Utils() {}
-
-// Destructor
-Utils::~Utils() {}
+Utils::Utils() = default;
 
 char* Utils::preProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
 {
@@ -23,20 +34,22 @@ char* Utils::preProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat&
     if (iImg.cols >= iImg.rows)
     {
         // Width-dominant: scale by target width (iImgSize[0])
-        resizeScales_ = iImg.cols / static_cast<float>(iImgSize.at(0));
+        resizeScales_ = static_cast<float>(iImg.cols) / static_cast<float>(iImgSize.at(0));
         // Resize to target width, scaling height to maintain aspect ratio
-        cv::resize(oImg, oImg, cv::Size(iImgSize.at(0), static_cast<int>(iImg.rows / resizeScales_)));
+        cv::resize(
+            oImg, oImg, cv::Size(iImgSize.at(0), static_cast<int>(static_cast<float>(iImg.rows) / resizeScales_)));
     }
     else
     {
         // Height-dominant: scale by target height (iImgSize[1])
-        resizeScales_ = iImg.rows / static_cast<float>(iImgSize.at(1));
+        resizeScales_ = static_cast<float>(iImg.rows) / static_cast<float>(iImgSize.at(1));
         // Resize width proportionally to target height to maintain aspect ratio (height-dominant case)
-        cv::resize(oImg, oImg, cv::Size(static_cast<int>(iImg.cols / resizeScales_), iImgSize.at(1)));
+        cv::resize(
+            oImg, oImg, cv::Size(static_cast<int>(static_cast<float>(iImg.cols) / resizeScales_), iImgSize.at(1)));
     }
 
     // Letterbox top-left into a canvas of size (H=iImgSize[1], W=iImgSize[0])
-    cv::Mat temp_img = cv::Mat::zeros(iImgSize.at(1), iImgSize.at(0), CV_8UC3);
+    cv::Mat const temp_img = cv::Mat::zeros(iImgSize.at(1), iImgSize.at(0), CV_8UC3);
     oImg.copyTo(temp_img(cv::Rect(0, 0, oImg.cols, oImg.rows)));
     oImg = temp_img;
 
@@ -52,16 +65,16 @@ void Utils::scaleBboxPoints(const cv::Mat& iImg,
     pointCoordsScaled.clear();
 
     // Calculate same scale as preprocessing
-    float scale;
+    float scale = 1.0F;
     if (iImg.cols >= iImg.rows)
     {
-        scale = imgSize[0] / (float)iImg.cols;
-        resizeScalesBbox_ = iImg.cols / (float)imgSize[0];
+        scale = static_cast<float>(imgSize[0]) / static_cast<float>(iImg.cols);
+        resizeScalesBbox_ = static_cast<float>(iImg.cols) / static_cast<float>(imgSize[0]);
     }
     else
     {
-        scale = imgSize[1] / (float)iImg.rows;
-        resizeScalesBbox_ = iImg.rows / (float)imgSize[1];
+        scale = static_cast<float>(imgSize[1]) / static_cast<float>(iImg.rows);
+        resizeScalesBbox_ = static_cast<float>(iImg.rows) / static_cast<float>(imgSize[1]);
     }
 
     // Top-Left placement (matching preProcess)
@@ -69,12 +82,12 @@ void Utils::scaleBboxPoints(const cv::Mat& iImg,
     {
         if (i + 1 < pointCoords.size())
         {
-            float x = pointCoords[i];
-            float y = pointCoords[i + 1];
+            float const x = pointCoords[i];
+            float const y = pointCoords[i + 1];
 
             // Simply scale coordinates - NO padding addition
-            float scaled_x = x * scale;
-            float scaled_y = y * scale;
+            float const scaled_x = x * scale;
+            float const scaled_y = y * scale;
 
             pointCoordsScaled.push_back(scaled_x);
             pointCoordsScaled.push_back(scaled_y);
@@ -140,12 +153,13 @@ void Utils::postProcess(std::vector<Ort::Value>& output_tensors,
     {
         CONSOLE_BRIDGE_logError("[SAM]: Decoder returned no outputs.");
         // Push empty mask to preserve index alignment with boxes (one mask slot per box).
-        result.masks.push_back(cv::Mat());
+        result.masks.emplace_back();
         return;
     }
 
     // Detect masks (4D) and scores (1D/2D) by shape
-    int masks_idx = -1, scores_idx = -1;
+    int masks_idx = -1;
+    int scores_idx = -1;
     for (int i = 0; i < static_cast<int>(output_tensors.size()); ++i)
     {
         const auto& val = output_tensors[i];
@@ -160,7 +174,7 @@ void Utils::postProcess(std::vector<Ort::Value>& output_tensors,
     {
         CONSOLE_BRIDGE_logError("[SAM]: No 4D mask tensor found in decoder outputs.");
         // Push empty mask to preserve index alignment with boxes (one mask slot per box).
-        result.masks.push_back(cv::Mat());
+        result.masks.emplace_back();
         return;
     }
 
@@ -176,11 +190,11 @@ void Utils::postProcess(std::vector<Ort::Value>& output_tensors,
 
     if (masks_shape.size() == 4)
     {
-        auto masks_data = masks_tensor.GetTensorMutableData<float>();
+        auto* masks_data = masks_tensor.GetTensorMutableData<float>();
 
-        const size_t num_masks = static_cast<size_t>(masks_shape[1]);
-        const size_t height = static_cast<size_t>(masks_shape[2]);
-        const size_t width = static_cast<size_t>(masks_shape[3]);
+        const auto num_masks = static_cast<size_t>(masks_shape[1]);
+        const auto height = static_cast<size_t>(masks_shape[2]);
+        const auto width = static_cast<size_t>(masks_shape[3]);
 
         // Pick best mask by score if available
         float best_score = -1.0f;
@@ -199,18 +213,19 @@ void Utils::postProcess(std::vector<Ort::Value>& output_tensors,
         }
 
         // Compute preprocessed region (top-left anchored) to undo letterbox
-        float scale;
-        int processed_width, processed_height;
+        float scale = 1.0F;
+        int processed_width = 0;
+        int processed_height = 0;
         if (iImg.cols >= iImg.rows)
         {
             scale = static_cast<float>(imgSize[0]) / static_cast<float>(iImg.cols);
             processed_width = imgSize[0];
-            processed_height = static_cast<int>(iImg.rows * scale);
+            processed_height = static_cast<int>(static_cast<float>(iImg.rows) * scale);
         }
         else
         {
             scale = static_cast<float>(imgSize[1]) / static_cast<float>(iImg.rows);
-            processed_width = static_cast<int>(iImg.cols * scale);
+            processed_width = static_cast<int>(static_cast<float>(iImg.cols) * scale);
             processed_height = imgSize[1];
         }
 
@@ -218,19 +233,21 @@ void Utils::postProcess(std::vector<Ort::Value>& output_tensors,
 
         // Wrap selected mask plane as float prob map
         const size_t plane_offset = best_mask_index * height * width;
-        cv::Mat prob32f(
+        cv::Mat const prob32f(
             static_cast<int>(height), static_cast<int>(width), CV_32F, const_cast<float*>(masks_data + plane_offset));
 
         // Crop padding region in mask space
-        const int crop_w = clamp_dim(
-            static_cast<int>(std::round(static_cast<float>(width) * processed_width / static_cast<float>(imgSize[0]))),
-            1,
-            static_cast<int>(width));
-        const int crop_h = clamp_dim(
-            static_cast<int>(std::round(static_cast<float>(height) * processed_height / static_cast<float>(imgSize[1]))),
-            1,
-            static_cast<int>(height));
-        cv::Mat prob_cropped = prob32f(cv::Rect(0, 0, crop_w, crop_h));
+        const int crop_w =
+            clamp_dim(static_cast<int>(std::round(static_cast<float>(width) * static_cast<float>(processed_width) /
+                                                  static_cast<float>(imgSize[0]))),
+                      1,
+                      static_cast<int>(width));
+        const int crop_h =
+            clamp_dim(static_cast<int>(std::round(static_cast<float>(height) * static_cast<float>(processed_height) /
+                                                  static_cast<float>(imgSize[1]))),
+                      1,
+                      static_cast<int>(height));
+        cv::Mat const prob_cropped = prob32f(cv::Rect(0, 0, crop_w, crop_h));
 
         // Resize to original image size and threshold
         cv::Mat prob_resized;
@@ -240,8 +257,8 @@ void Utils::postProcess(std::vector<Ort::Value>& output_tensors,
         cv::compare(prob_resized, 0.5f, final_mask, cv::CMP_GT); // CV_8U 0/255
 
         // Optional cleanup
-        int kernel_size = std::max(5, std::min(iImg.cols, iImg.rows) / 100);
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernel_size, kernel_size));
+        int const kernel_size = std::max(5, std::min(iImg.cols, iImg.rows) / 100);
+        cv::Mat const kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernel_size, kernel_size));
         cv::morphologyEx(final_mask, final_mask, cv::MORPH_CLOSE, kernel);
         cv::morphologyEx(final_mask, final_mask, cv::MORPH_OPEN, kernel);
         cv::threshold(final_mask, final_mask, 127, 255, cv::THRESH_BINARY);
@@ -253,6 +270,6 @@ void Utils::postProcess(std::vector<Ort::Value>& output_tensors,
     {
         CONSOLE_BRIDGE_logError("[SAM]: Unexpected mask tensor shape.");
         // Push empty mask to preserve index alignment with boxes (one mask slot per box).
-        result.masks.push_back(cv::Mat());
+        result.masks.emplace_back();
     }
 }
