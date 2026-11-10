@@ -57,8 +57,9 @@ Note: Update the CMakeLists.txt with the correct paths for Onnxruntime and OpenC
 
 You can use main.cpp to run the application
 
-## ROS option
-    You can also run the code as a catkin package.
+## ROS 2 option
+    You can also build the code as a ROS 2 (ament_cmake) package, e.g. with `tue-make sam_onnx_ros`
+    or `colcon build --packages-select sam_onnx_ros`.
 
 ## 📦 Dependencies
     CUDA: NVIDIA's parallel computing platform

@@ -7,11 +7,11 @@
   <version>0.0.0</version>
   <description>Segment Anything Model (SAM) segmentation</description>
 
-  <author email="iasonth95@gmail.com">Iason Theodorou</author>
   <maintainer email="iasonth95@gmail.com">Iason Theodorou</maintainer>
 
   <license>BSD</license>
 
+  <author email="iasonth95@gmail.com">Iason Theodorou</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
@@ -23,7 +23,6 @@
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_lint_cmake</test_depend>
   <test_depend>ament_cmake_xmllint</test_depend>
-  <test_depend>tue_lint_config</test_depend>
 
   <doc_depend>doxygen</doc_depend>
 

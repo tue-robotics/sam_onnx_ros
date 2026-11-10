@@ -2,17 +2,36 @@ name: CI
 
 on: [push, pull_request, workflow_dispatch]
 
+permissions:
+  contents: read
+
 jobs:
-  tue-ci:
-    name: TUe CI (${{ matrix.ros_distro }}) - ${{ github.event_name }}
+  tue-ci-onnx-cpu:
+    name: TUe CI - ${{ github.event_name }} (${{ matrix.ros_distro }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        ros_distro: [jazzy, jazzy-cu12.8.2-devel, rolling-u24]
+        ros_distro: [jazzy, rolling-u24]
     steps:
       - name: TUe CI
         uses: tue-robotics/tue-env/ci/main@master
         with:
           image: ghcr.io/tue-robotics/tue-env-ros-${{ matrix.ros_distro }}
+          package: ${{ github.event.repository.name }}
+
+  tue-ci-trt-cuda:
+    name: TUe CI - ${{ github.event_name }} (${{ matrix.ros_distro }}-${{ matrix.cuda_flavor }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # tue-env only builds CUDA images for jazzy (and humble), there is no rolling CUDA image yet
+        ros_distro: [jazzy]
+        cuda_flavor: [cu12.8.2-devel]
+    steps:
+      - name: TUe CI
+        uses: tue-robotics/tue-env/ci/main@master
+        with:
+          image: ghcr.io/tue-robotics/tue-env-ros-${{ matrix.ros_distro }}-${{ matrix.cuda_flavor }}
           package: ${{ github.event.repository.name }}
