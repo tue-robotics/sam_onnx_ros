@@ -1,7 +1,7 @@
 # Project Guidelines
 
 ## Code Style
-- Follow ROS/C++17 standards.
+- Follow ROS 2/C++17 standards.
 - Use the Pimpl (Pointer to Implementation) idiom for heavy neural networks to avoid polluting headers (e.g., `SamSegPipeline::Impl`).
 
 ## Architecture
@@ -16,11 +16,11 @@
   - *Morphological Denoising*: Structural interpolation smoothing is strictly enforced via dynamically sized elliptical OpenCV kernels `std::max(5, std::min(w, h)/100)` using `MORPH_CLOSE` followed seamlessly by `MORPH_OPEN` to match ONNX geometric boundary signatures.
 
 ## Build and Test
-- **Build**: Use `catkin build --this` or `tue-make <package>` or `tue-make --this`.
+- **Build**: Use `tue-make <package>`, `tue-make --this` or `colcon build --packages-select sam_onnx_ros`.
 - **Dependencies**:
-  - TensorRT/SpeedSAM support is provided via the `tensorrt_ros` catkin dependency and the `sam_trt_lib` git submodule (initialize with `git submodule update --init --recursive`).
+  - TensorRT/SpeedSAM support is provided via the `tensorrt_ros` ament dependency and the `sam_trt_lib` git submodule (initialize with `git submodule update --init --recursive`).
   - Review [TENSORRT_COMPILE_DIFF_REPORT.md](../TENSORRT_COMPILE_DIFF_REPORT.md) and commit `129cc9d` for historical compilation notes.
 - **Testing (Next Steps)**: Validate the SAM TensorRT outputs identically match standard SAM ONNX outputs during active node iterations. Needs live integration tests.
 
 ## Conventions
-- **Logging**: Use standard ROS macros `ROS_WARN`, `ROS_DEBUG`, etc. Always escape newlines `\n` safely to prevent compiler macro breaks.
+- **Logging**: Use the console_bridge macros `CONSOLE_BRIDGE_logWarn`, `CONSOLE_BRIDGE_logDebug`, etc. Always escape newlines `\n` safely to prevent compiler macro breaks.
