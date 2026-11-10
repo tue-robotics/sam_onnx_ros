@@ -3,14 +3,10 @@
 #include <console_bridge/console.h>
 
 // Constructor
-Utils::Utils()
-{
-}
+Utils::Utils() {}
 
 // Destructor
-Utils::~Utils()
-{
-}
+Utils::~Utils() {}
 
 char* Utils::PreProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg)
 {
@@ -47,7 +43,10 @@ char* Utils::PreProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat&
     return RET_OK;
 }
 
-void Utils::ScaleBboxPoints(const cv::Mat& iImg, std::vector<int> imgSize, std::vector<float>& pointCoords, std::vector<float>& pointCoordsScaled)
+void Utils::ScaleBboxPoints(const cv::Mat& iImg,
+                            std::vector<int> imgSize,
+                            std::vector<float>& pointCoords,
+                            std::vector<float>& pointCoordsScaled)
 {
 
     pointCoordsScaled.clear();
@@ -83,37 +82,44 @@ void Utils::ScaleBboxPoints(const cv::Mat& iImg, std::vector<int> imgSize, std::
     }
 }
 
-std::vector<Ort::Value> Utils::PrepareInputTensor(Ort::Value& decoderInputTensor, std::vector<float>& pointCoordsScaled, std::vector<int64_t> pointCoordsDims, std::vector<float>& pointLabels,
-                                                  std::vector<int64_t> pointLabelsDims, std::vector<float>& maskInput, std::vector<int64_t> maskInputDims, std::vector<float>& hasMaskInput, std::vector<int64_t> hasMaskInputDims)
+std::vector<Ort::Value> Utils::PrepareInputTensor(Ort::Value& decoderInputTensor,
+                                                  std::vector<float>& pointCoordsScaled,
+                                                  std::vector<int64_t> pointCoordsDims,
+                                                  std::vector<float>& pointLabels,
+                                                  std::vector<int64_t> pointLabelsDims,
+                                                  std::vector<float>& maskInput,
+                                                  std::vector<int64_t> maskInputDims,
+                                                  std::vector<float>& hasMaskInput,
+                                                  std::vector<int64_t> hasMaskInputDims)
 {
 
-    Ort::Value pointCoordsTensor = Ort::Value::CreateTensor<float>(
-        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-        pointCoordsScaled.data(),
-        pointCoordsScaled.size(),
-        pointCoordsDims.data(),
-        pointCoordsDims.size());
+    Ort::Value pointCoordsTensor =
+        Ort::Value::CreateTensor<float>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                                        pointCoordsScaled.data(),
+                                        pointCoordsScaled.size(),
+                                        pointCoordsDims.data(),
+                                        pointCoordsDims.size());
 
-    Ort::Value pointLabelsTensor = Ort::Value::CreateTensor<float>(
-        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-        pointLabels.data(),
-        pointLabels.size(),
-        pointLabelsDims.data(),
-        pointLabelsDims.size());
+    Ort::Value pointLabelsTensor =
+        Ort::Value::CreateTensor<float>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                                        pointLabels.data(),
+                                        pointLabels.size(),
+                                        pointLabelsDims.data(),
+                                        pointLabelsDims.size());
 
-    Ort::Value maskInputTensor = Ort::Value::CreateTensor<float>(
-        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-        maskInput.data(),
-        maskInput.size(),
-        maskInputDims.data(),
-        maskInputDims.size());
+    Ort::Value maskInputTensor =
+        Ort::Value::CreateTensor<float>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                                        maskInput.data(),
+                                        maskInput.size(),
+                                        maskInputDims.data(),
+                                        maskInputDims.size());
 
-    Ort::Value hasMaskInputTensor = Ort::Value::CreateTensor<float>(
-        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
-        hasMaskInput.data(),
-        hasMaskInput.size(),
-        hasMaskInputDims.data(),
-        hasMaskInputDims.size());
+    Ort::Value hasMaskInputTensor =
+        Ort::Value::CreateTensor<float>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU),
+                                        hasMaskInput.data(),
+                                        hasMaskInput.size(),
+                                        hasMaskInputDims.data(),
+                                        hasMaskInputDims.size());
 
     // Pass all inputs to the decoder
     std::vector<Ort::Value> inputTensors;
@@ -125,7 +131,10 @@ std::vector<Ort::Value> Utils::PrepareInputTensor(Ort::Value& decoderInputTensor
 
     return inputTensors;
 }
-void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg, std::vector<int> imgSize, SEG::DL_RESULT& result)
+void Utils::PostProcess(std::vector<Ort::Value>& output_tensors,
+                        const cv::Mat& iImg,
+                        std::vector<int> imgSize,
+                        SEG::DL_RESULT& result)
 {
     if (output_tensors.empty())
     {
@@ -141,8 +150,10 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
     {
         const auto& val = output_tensors[i];
         auto shape = val.GetTensorTypeAndShapeInfo().GetShape();
-        if (shape.size() == 4) masksIdx = i;
-        else if (shape.size() <= 2) scoresIdx = i;
+        if (shape.size() == 4)
+            masksIdx = i;
+        else if (shape.size() <= 2)
+            scoresIdx = i;
     }
 
     if (masksIdx < 0)
@@ -160,16 +171,16 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
         scoresData = output_tensors[scoresIdx].GetTensorMutableData<float>();
     }
 
-    auto masksInfo  = masksTensor.GetTensorTypeAndShapeInfo();
+    auto masksInfo = masksTensor.GetTensorTypeAndShapeInfo();
     auto masksShape = masksInfo.GetShape();
 
     if (masksShape.size() == 4)
     {
-        auto masksData  = masksTensor.GetTensorMutableData<float>();
+        auto masksData = masksTensor.GetTensorMutableData<float>();
 
         const size_t numMasks = static_cast<size_t>(masksShape[1]);
-        const size_t height   = static_cast<size_t>(masksShape[2]);
-        const size_t width    = static_cast<size_t>(masksShape[3]);
+        const size_t height = static_cast<size_t>(masksShape[2]);
+        const size_t width = static_cast<size_t>(masksShape[3]);
 
         // Pick best mask by score if available
         float bestScore = -1.0f;
@@ -179,7 +190,11 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
             for (size_t i = 0; i < numMasks; ++i)
             {
                 const float s = scoresData[i];
-                if (s > bestScore) { bestScore = s; bestMaskIndex = i; }
+                if (s > bestScore)
+                {
+                    bestScore = s;
+                    bestMaskIndex = i;
+                }
             }
         }
 
@@ -189,13 +204,13 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
         if (iImg.cols >= iImg.rows)
         {
             scale = static_cast<float>(imgSize[0]) / static_cast<float>(iImg.cols);
-            processedWidth  = imgSize[0];
+            processedWidth = imgSize[0];
             processedHeight = static_cast<int>(iImg.rows * scale);
         }
         else
         {
             scale = static_cast<float>(imgSize[1]) / static_cast<float>(iImg.rows);
-            processedWidth  = static_cast<int>(iImg.cols * scale);
+            processedWidth = static_cast<int>(iImg.cols * scale);
             processedHeight = imgSize[1];
         }
 
@@ -203,11 +218,18 @@ void Utils::PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& 
 
         // Wrap selected mask plane as float prob map
         const size_t planeOffset = bestMaskIndex * height * width;
-        cv::Mat prob32f(static_cast<int>(height), static_cast<int>(width), CV_32F, const_cast<float*>(masksData + planeOffset));
+        cv::Mat prob32f(
+            static_cast<int>(height), static_cast<int>(width), CV_32F, const_cast<float*>(masksData + planeOffset));
 
         // Crop padding region in mask space
-        const int cropW = clampDim(static_cast<int>(std::round(static_cast<float>(width)  * processedWidth  / static_cast<float>(imgSize[0]))), 1, static_cast<int>(width));
-        const int cropH = clampDim(static_cast<int>(std::round(static_cast<float>(height) * processedHeight / static_cast<float>(imgSize[1]))), 1, static_cast<int>(height));
+        const int cropW = clampDim(
+            static_cast<int>(std::round(static_cast<float>(width) * processedWidth / static_cast<float>(imgSize[0]))),
+            1,
+            static_cast<int>(width));
+        const int cropH = clampDim(
+            static_cast<int>(std::round(static_cast<float>(height) * processedHeight / static_cast<float>(imgSize[1]))),
+            1,
+            static_cast<int>(height));
         cv::Mat probCropped = prob32f(cv::Rect(0, 0, cropW, cropH));
 
         // Resize to original image size and threshold

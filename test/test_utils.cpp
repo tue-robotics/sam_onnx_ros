@@ -8,7 +8,8 @@
 // and coordinate scaling to match preprocessing.
 
 // Lightweight fixture: gives each test a fresh Utils instance.
-class UtilsTest : public ::testing::Test {
+class UtilsTest : public ::testing::Test
+{
 protected:
     Utils u;
 };
@@ -65,7 +66,8 @@ TEST_F(UtilsTest, PreprocessTopLeftPaddingAndAspect)
     if (resized_h < target[1])
     {
         cv::Mat roi_pad = out(cv::Rect(0, resized_h, target[0], target[1] - resized_h));
-        cv::Mat gray; cv::cvtColor(roi_pad, gray, cv::COLOR_BGR2GRAY);
+        cv::Mat gray;
+        cv::cvtColor(roi_pad, gray, cv::COLOR_BGR2GRAY);
         EXPECT_EQ(cv::countNonZero(gray), 0);
     }
 }
@@ -117,7 +119,8 @@ TEST_P(UtilsPreprocessParamTest, LetterboxWithinBoundsAndChannels3)
         if (resized_h < target.height)
         {
             cv::Mat roi_pad = out(cv::Rect(0, resized_h, target.width, target.height - resized_h));
-            cv::Mat gray; cv::cvtColor(roi_pad, gray, cv::COLOR_BGR2GRAY);
+            cv::Mat gray;
+            cv::cvtColor(roi_pad, gray, cv::COLOR_BGR2GRAY);
             EXPECT_EQ(cv::countNonZero(gray), 0);
         }
     }
@@ -127,7 +130,8 @@ TEST_P(UtilsPreprocessParamTest, LetterboxWithinBoundsAndChannels3)
         if (resized_w < target.width)
         {
             cv::Mat roi_pad = out(cv::Rect(resized_w, 0, target.width - resized_w, target.height));
-            cv::Mat gray; cv::cvtColor(roi_pad, gray, cv::COLOR_BGR2GRAY);
+            cv::Mat gray;
+            cv::cvtColor(roi_pad, gray, cv::COLOR_BGR2GRAY);
             EXPECT_EQ(cv::countNonZero(gray), 0);
         }
     }
@@ -138,13 +142,11 @@ TEST_P(UtilsPreprocessParamTest, LetterboxWithinBoundsAndChannels3)
 INSTANTIATE_TEST_SUITE_P(
     ManySizes,
     UtilsPreprocessParamTest,
-    ::testing::Values(
-        std::make_tuple(cv::Size(640, 640),  cv::Size(1024, 1024)), // square -> square
-        std::make_tuple(cv::Size(800, 600),  cv::Size(800, 600)),    // same size (no resize)
-        std::make_tuple(cv::Size(600, 800),  cv::Size(800, 600)),    // portrait -> landscape
-        std::make_tuple(cv::Size(1280, 720), cv::Size(1024, 1024))   // wide -> square
-    )
-);
+    ::testing::Values(std::make_tuple(cv::Size(640, 640), cv::Size(1024, 1024)), // square -> square
+                      std::make_tuple(cv::Size(800, 600), cv::Size(800, 600)), // same size (no resize)
+                      std::make_tuple(cv::Size(600, 800), cv::Size(800, 600)), // portrait -> landscape
+                      std::make_tuple(cv::Size(1280, 720), cv::Size(1024, 1024)) // wide -> square
+                      ));
 
 // Separate fixture for point scaling tests.
 class UtilsScaleBboxPointsTest : public ::testing::Test
@@ -173,8 +175,8 @@ TEST_F(UtilsScaleBboxPointsTest, IdentityWhenSameSize)
 // We expect coordinates to be multiplied by target_width / input_width.
 TEST_F(UtilsScaleBboxPointsTest, ScalesWidthDominant)
 {
-    cv::Mat img(300, 600, CV_8UC3);                  // h=300, w=600 (w >= h)
-    std::vector<int> target{1200, 600};              // width doubles
+    cv::Mat img(300, 600, CV_8UC3); // h=300, w=600 (w >= h)
+    std::vector<int> target{1200, 600}; // width doubles
     std::vector<float> pts{100.f, 50.f, 500.f, 250.f};
     std::vector<float> scaled;
 
@@ -191,8 +193,8 @@ TEST_F(UtilsScaleBboxPointsTest, ScalesWidthDominant)
 // We expect coordinates to be multiplied by target_height / input_height.
 TEST_F(UtilsScaleBboxPointsTest, ScalesHeightDominant)
 {
-    cv::Mat img(600, 300, CV_8UC3);                  // h=600, w=300 (h > w)
-    std::vector<int> target{600, 1200};              // height doubles
+    cv::Mat img(600, 300, CV_8UC3); // h=600, w=300 (h > w)
+    std::vector<int> target{600, 1200}; // height doubles
     std::vector<float> pts{100.f, 50.f, 200.f, 500.f};
     std::vector<float> scaled;
 
@@ -206,7 +208,7 @@ TEST_F(UtilsScaleBboxPointsTest, ScalesHeightDominant)
 }
 
 // Run all tests
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -63,7 +63,8 @@ std::vector<std::filesystem::path> CollectInputs(const std::filesystem::path& in
     }
     catch (const std::filesystem::filesystem_error& error)
     {
-        throw std::invalid_argument("Failed to access input path '" + input_path.string() + "': " + error.code().message());
+        throw std::invalid_argument("Failed to access input path '" + input_path.string() +
+                                    "': " + error.code().message());
     }
 }
 
@@ -171,15 +172,17 @@ int RunMain(const std::filesystem::path& encoder_name,
         SegmentAnything(samWrapper, params_encoder, params_decoder, img, resSam, res);
 
         std::string modeStr = (backend == SEG::Backend::kSpeedSam) ? "speedsam" : "onnx";
-        std::string promptStr = (prompt_mode == PromptMode::kBbox) ? " Bbox prompt" :
-                                (prompt_mode == PromptMode::kRoi)  ? " ROI prompt" : " Point prompt";
+        std::string promptStr = (prompt_mode == PromptMode::kBbox)  ? " Bbox prompt"
+                                : (prompt_mode == PromptMode::kRoi) ? " ROI prompt"
+                                                                    : " Point prompt";
         std::string windowName = "SAM Result (" + modeStr + " -" + promptStr + ")";
 
         if (!resSam.empty() && !resSam.front().masks.empty())
         {
             cv::Mat rendered = img.clone();
             cv::Mat mask = resSam.front().masks.front();
-            if (!mask.empty()) {
+            if (!mask.empty())
+            {
                 cv::Mat colorMask = cv::Mat::zeros(rendered.size(), CV_8UC3);
                 colorMask.setTo(cv::Scalar(0, 200, 0), mask);
                 cv::addWeighted(rendered, 0.7, colorMask, 0.3, 0, rendered);
@@ -196,24 +199,24 @@ int RunMain(const std::filesystem::path& encoder_name,
             }
         }
 
-    if (logging)
+        if (logging)
         {
-        for (const auto& result : resSam)
-        {
-            std::cout << "Image path:   " << image_path << "\n"
-                      << "# boxes:      " << result.boxes.size() << "\n"
-                      << "# embeddings: " << result.embeddings.size() << "\n"
-                      << "# masks:      " << result.masks.size() << "\n";
+            for (const auto& result : resSam)
+            {
+                std::cout << "Image path:   " << image_path << "\n"
+                          << "# boxes:      " << result.boxes.size() << "\n"
+                          << "# embeddings: " << result.embeddings.size() << "\n"
+                          << "# masks:      " << result.masks.size() << "\n";
+            }
         }
     }
-}
 
     return 0;
 }
 
 } // namespace
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     if (argc < 5)
     {
@@ -263,7 +266,9 @@ int main(int argc, char *argv[])
 #if !SAM_ONNX_ROS_TENSORRT_ENABLED
     if (backend == SEG::Backend::kSpeedSam)
     {
-        std::cerr << "This binary was built without TensorRT support. Install TensorRT and rebuild, or use --backend=onnx." << std::endl;
+        std::cerr
+            << "This binary was built without TensorRT support. Install TensorRT and rebuild, or use --backend=onnx."
+            << std::endl;
         return 2;
     }
 #endif

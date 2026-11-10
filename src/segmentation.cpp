@@ -1,11 +1,13 @@
-#include "sam_onnx_ros/config.hpp"
 #include "sam_onnx_ros/segmentation.hpp"
+#include "sam_onnx_ros/config.hpp"
 
 #if SAM_ONNX_ROS_TENSORRT_ENABLED
 #include <speedSam.h>
 #else
 // Never instantiated, but SamWrapper's std::unique_ptr<SpeedSam> needs a complete type to be destructible
-class SpeedSam {};
+class SpeedSam
+{
+};
 #endif
 
 #include <stdexcept>
@@ -15,14 +17,8 @@ SamWrapper::~SamWrapper() = default;
 SamWrapper::SamWrapper(SamWrapper&&) noexcept = default;
 SamWrapper& SamWrapper::operator=(SamWrapper&&) noexcept = default;
 
-std::tuple<
-    SamWrapper,
-    SEG::DL_INIT_PARAM,
-    SEG::DL_INIT_PARAM,
-    SEG::DL_RESULT,
-    std::vector<SEG::DL_RESULT>
->
-Initialize(const std::filesystem::path& encoder_filename, const std::filesystem::path& decoder_filename, SEG::Backend backend)
+std::tuple<SamWrapper, SEG::DL_INIT_PARAM, SEG::DL_INIT_PARAM, SEG::DL_RESULT, std::vector<SEG::DL_RESULT>> Initialize(
+    const std::filesystem::path& encoder_filename, const std::filesystem::path& decoder_filename, SEG::Backend backend)
 {
     SamWrapper samWrapper;
     samWrapper.backend = backend;
@@ -43,13 +39,13 @@ Initialize(const std::filesystem::path& encoder_filename, const std::filesystem:
         std::unique_ptr<SAM> samSegmentorEncoder = std::make_unique<SAM>();
         std::unique_ptr<SAM> samSegmentorDecoder = std::make_unique<SAM>();
 
-        #if defined(SAM_ONNX_ROS_CUDA_ENABLED) && SAM_ONNX_ROS_CUDA_ENABLED
+#if defined(SAM_ONNX_ROS_CUDA_ENABLED) && SAM_ONNX_ROS_CUDA_ENABLED
         params_encoder.cudaEnable = true;
         params_decoder.cudaEnable = true;
-        #else
+#else
         params_encoder.cudaEnable = false;
         params_decoder.cudaEnable = false;
-        #endif
+#endif
 
         samSegmentorEncoder->CreateSession(params_encoder);
         samSegmentorDecoder->CreateSession(params_decoder);
@@ -65,7 +61,9 @@ Initialize(const std::filesystem::path& encoder_filename, const std::filesystem:
 #else
     else if (backend == SEG::Backend::kSpeedSam)
     {
-        throw std::runtime_error("[ERROR] Cannot Initialize: backend 'speedsam' was requested, but 'sam_onnx_ros' was compiled WITHOUT TensorRT! Please install TensorRT headers and rebuild.");
+        throw std::runtime_error(
+            "[ERROR] Cannot Initialize: backend 'speedsam' was requested, but 'sam_onnx_ros' was compiled WITHOUT "
+            "TensorRT! Please install TensorRT headers and rebuild.");
     }
 #endif
 
@@ -81,10 +79,11 @@ void SegmentAnything(SamWrapper& samWrapper,
 {
     if (samWrapper.backend == SEG::Backend::kOnnx)
     {
-         if (samWrapper.samSegmentors.size() < 2 || !samWrapper.samSegmentors[0] || !samWrapper.samSegmentors[1])
-         {
-             throw std::runtime_error("SegmentAnything: ONNX backend requires 2 initialized SAM sessions (encoder + decoder).");
-         }
+        if (samWrapper.samSegmentors.size() < 2 || !samWrapper.samSegmentors[0] || !samWrapper.samSegmentors[1])
+        {
+            throw std::runtime_error(
+                "SegmentAnything: ONNX backend requires 2 initialized SAM sessions (encoder + decoder).");
+        }
 
         SEG::MODEL_TYPE modelTypeRef = params_encoder.modelType;
         samWrapper.samSegmentors[0]->RunSession(img, resSam, modelTypeRef, res);
@@ -105,10 +104,8 @@ void SegmentAnything(SamWrapper& samWrapper,
 
         for (const auto& box : res.boxes)
         {
-            std::vector<cv::Point> bboxPoints = {
-                cv::Point(box.x, box.y),
-                cv::Point(box.x + box.width, box.y + box.height)
-            };
+            std::vector<cv::Point> bboxPoints = {cv::Point(box.x, box.y),
+                                                 cv::Point(box.x + box.width, box.y + box.height)};
             cv::Mat mask = samWrapper.speedSam->predictFromTemplate(bboxPoints, {2.0f, 3.0f});
 
             res.masks.push_back(mask);
@@ -119,7 +116,9 @@ void SegmentAnything(SamWrapper& samWrapper,
     else if (samWrapper.backend == SEG::Backend::kSpeedSam)
     {
         // Fail loudly rather than doing 0ms silent returns
-        throw std::runtime_error("[ERROR] SegmentAnything: backend 'speedsam' was requested, but 'sam_onnx_ros' was compiled WITHOUT TensorRT! Please install TensorRT headers and rebuild.");
+        throw std::runtime_error(
+            "[ERROR] SegmentAnything: backend 'speedsam' was requested, but 'sam_onnx_ros' was compiled WITHOUT "
+            "TensorRT! Please install TensorRT headers and rebuild.");
     }
 #endif
 }

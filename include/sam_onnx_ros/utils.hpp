@@ -21,18 +21,29 @@ public:
     ~Utils();
 
     char* PreProcess(const cv::Mat& iImg, std::vector<int> iImgSize, cv::Mat& oImg);
-    void ScaleBboxPoints(const cv::Mat& iImg, std::vector<int> iImgSize, std::vector<float>& pointCoords, std::vector<float>& PointsCoordsScaled);
+    void ScaleBboxPoints(const cv::Mat& iImg,
+                         std::vector<int> iImgSize,
+                         std::vector<float>& pointCoords,
+                         std::vector<float>& PointsCoordsScaled);
 
-    std::vector<Ort::Value> PrepareInputTensor(Ort::Value& decoderInputTensor, std::vector<float>& pointCoordsScaled, std::vector<int64_t> pointCoordsDims,
-                                               std::vector<float>& pointLabels, std::vector<int64_t> pointLabelsDims, std::vector<float>& maskInput,
-                                               std::vector<int64_t> maskInputDims, std::vector<float>& hasMaskInput, std::vector<int64_t> hasMaskInputDims);
+    std::vector<Ort::Value> PrepareInputTensor(Ort::Value& decoderInputTensor,
+                                               std::vector<float>& pointCoordsScaled,
+                                               std::vector<int64_t> pointCoordsDims,
+                                               std::vector<float>& pointLabels,
+                                               std::vector<int64_t> pointLabelsDims,
+                                               std::vector<float>& maskInput,
+                                               std::vector<int64_t> maskInputDims,
+                                               std::vector<float>& hasMaskInput,
+                                               std::vector<int64_t> hasMaskInputDims);
 
-    void PostProcess(std::vector<Ort::Value>& output_tensors, const cv::Mat& iImg, std::vector<int> iImgSize, SEG::DL_RESULT& result);
+    void PostProcess(std::vector<Ort::Value>& output_tensors,
+                     const cv::Mat& iImg,
+                     std::vector<int> iImgSize,
+                     SEG::DL_RESULT& result);
 
-    // Definition: Flattened image to blob (and normalizaed) for deep learning inference. Also reorganize from HWC to CHW.
-    // Note: Code in header file since it is used outside of this utils src code.
-    template <typename T>
-    char* BlobFromImage(const cv::Mat& iImg, T& iBlob)
+    // Definition: Flattened image to blob (and normalizaed) for deep learning inference. Also reorganize from HWC to
+    // CHW. Note: Code in header file since it is used outside of this utils src code.
+    template <typename T> char* BlobFromImage(const cv::Mat& iImg, T& iBlob)
     {
         int channels = iImg.channels();
         int imgHeight = iImg.rows;
@@ -44,8 +55,8 @@ public:
             {
                 for (int w = 0; w < imgWidth; w++)
                 {
-                    iBlob[c * imgWidth * imgHeight + h * imgWidth + w] = typename std::remove_pointer<T>::type(
-                        (iImg.at<cv::Vec3b>(h, w)[c]) / 255.0f);
+                    iBlob[c * imgWidth * imgHeight + h * imgWidth + w] =
+                        typename std::remove_pointer<T>::type((iImg.at<cv::Vec3b>(h, w)[c]) / 255.0f);
                 }
             }
         }
