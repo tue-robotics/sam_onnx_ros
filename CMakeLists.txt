@@ -83,15 +83,19 @@ if(${PROJECT_NAME}_TENSORRT_ENABLED)
     message(FATAL_ERROR "${PROJECT_NAME}_TENSORRT_ENABLED is ON but the sam_trt_lib submodule is missing. "
       "Run: git submodule update --init --recursive")
   endif()
-  target_sources(${PROJECT_NAME}
-    PRIVATE
-      3rdparty/sam_trt_lib/src/engineTRT.cpp
-      3rdparty/sam_trt_lib/src/speedSam.cpp
+  # Separate object library, so the 3rdparty code is kept out of compile_commands.json and isn't linted
+  set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
+  add_library(${PROJECT_NAME}_sam_trt_lib OBJECT
+    3rdparty/sam_trt_lib/src/engineTRT.cpp
+    3rdparty/sam_trt_lib/src/speedSam.cpp
   )
-  target_include_directories(${PROJECT_NAME}
-    PRIVATE
-      3rdparty/sam_trt_lib/include
-  )
+  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+  set_target_properties(${PROJECT_NAME}_sam_trt_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  target_include_directories(${PROJECT_NAME}_sam_trt_lib PUBLIC 3rdparty/sam_trt_lib/include)
+  target_link_libraries(${PROJECT_NAME}_sam_trt_lib PUBLIC tensorrt_ros::tensorrt_ros CUDA::cudart ${OpenCV_LIBRARIES})
+
+  target_sources(${PROJECT_NAME} PRIVATE $<TARGET_OBJECTS:${PROJECT_NAME}_sam_trt_lib>)
+  target_include_directories(${PROJECT_NAME} PRIVATE 3rdparty/sam_trt_lib/include)
   target_link_libraries(${PROJECT_NAME} PRIVATE tensorrt_ros::tensorrt_ros)
 endif()
 
@@ -168,9 +172,18 @@ endif()
 #                                           Testing
 # ------------------------------------------------------------------------------------------------
 if(BUILD_TESTING)
+  find_package(ament_cmake_clang_format REQUIRED)
+  find_package(ament_cmake_clang_tidy REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_cmake_lint_cmake REQUIRED)
   find_package(ament_cmake_xmllint REQUIRED)
+  find_package(tue_lint_config REQUIRED)
+
+  # Only lint our own code, not the sam_trt_lib submodule
+  ament_clang_format(CONFIG_FILE ${tue_lint_config_DIR}/../config/.clang-format --clang-format-version=21
+    ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/test)
+  ament_clang_tidy(CONFIG_FILE ${tue_lint_config_DIR}/../config/.clang-tidy --clang-tidy-version=21
+    ${CMAKE_BINARY_DIR}/compile_commands.json)
   ament_lint_cmake(MAX_LINE_LENGTH 120)
   ament_xmllint(MAX_LINE_LENGTH 120)
 
