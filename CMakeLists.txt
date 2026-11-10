@@ -27,16 +27,16 @@ if(DEFINED SAM_ONNX_ROS_ENABLE_TENSORRT)
 endif()
 
 if(${PROJECT_NAME}_ENABLE_TENSORRT AND CUDAToolkit_FOUND)
-  set(SAM_ONNX_ROS_TENSORRT_ENABLED TRUE)
+  set(${PROJECT_NAME}_TENSORRT_ENABLED TRUE)
   find_package(tensorrt_ros REQUIRED)
 else()
   if(${PROJECT_NAME}_ENABLE_TENSORRT)
     message(STATUS "CUDA toolkit not found, building without the TensorRT backend")
   endif()
-  set(SAM_ONNX_ROS_TENSORRT_ENABLED FALSE)
+  set(${PROJECT_NAME}_TENSORRT_ENABLED FALSE)
 endif()
 
-if(onnxruntime_ros_CUDA_ENABLED OR SAM_ONNX_ROS_TENSORRT_ENABLED)
+if(onnxruntime_ros_CUDA_ENABLED OR ${PROJECT_NAME}_TENSORRT_ENABLED)
   set(${PROJECT_NAME}_CUDA_ENABLED TRUE)
 else()
   set(${PROJECT_NAME}_CUDA_ENABLED FALSE)
@@ -46,10 +46,10 @@ if(${PROJECT_NAME}_CUDA_ENABLED AND NOT CUDAToolkit_FOUND)
   message(FATAL_ERROR "onnxruntime_ros is built with CUDA, but the CUDA toolkit could not be found")
 endif()
 
-set(SAM_ONNX_ROS_GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
-set(SAM_ONNX_ROS_CONFIG_HEADER ${SAM_ONNX_ROS_GENERATED_INCLUDE_DIR}/${PROJECT_NAME}/config.hpp)
+set(${PROJECT_NAME}_GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
+set(${PROJECT_NAME}_CONFIG_HEADER ${${PROJECT_NAME}_GENERATED_INCLUDE_DIR}/${PROJECT_NAME}/config.hpp)
 # @ONLY changes substitution behavior from: default: replace both ${VAR} and @VAR@ with @ONLY: replace only @VAR@
-configure_file(include/${PROJECT_NAME}/config.hpp.in ${SAM_ONNX_ROS_CONFIG_HEADER} @ONLY)
+configure_file(include/${PROJECT_NAME}/config.hpp.in ${${PROJECT_NAME}_CONFIG_HEADER} @ONLY)
 
 # ------------------------------------------------------------------------------------------------
 #                                           BUILD
@@ -63,7 +63,7 @@ add_library(${PROJECT_NAME} SHARED
 target_include_directories(${PROJECT_NAME}
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${SAM_ONNX_ROS_GENERATED_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:${${PROJECT_NAME}_GENERATED_INCLUDE_DIR}>
     $<INSTALL_INTERFACE:include>
 )
 # The public headers include ONNX Runtime and OpenCV, and cuda_fp16.h when CUDA is enabled
@@ -78,9 +78,9 @@ if(${PROJECT_NAME}_CUDA_ENABLED)
   target_link_libraries(${PROJECT_NAME} PUBLIC CUDA::cudart)
 endif()
 
-if(SAM_ONNX_ROS_TENSORRT_ENABLED)
+if(${PROJECT_NAME}_TENSORRT_ENABLED)
   if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/sam_trt_lib/src/engineTRT.cpp")
-    message(FATAL_ERROR "SAM_ONNX_ROS_TENSORRT_ENABLED is ON but the sam_trt_lib submodule is missing. "
+    message(FATAL_ERROR "${PROJECT_NAME}_TENSORRT_ENABLED is ON but the sam_trt_lib submodule is missing. "
       "Run: git submodule update --init --recursive")
   endif()
   target_sources(${PROJECT_NAME}
@@ -136,7 +136,7 @@ install(
 )
 
 install(
-  FILES ${SAM_ONNX_ROS_CONFIG_HEADER}
+  FILES ${${PROJECT_NAME}_CONFIG_HEADER}
   DESTINATION include/${PROJECT_NAME}
 )
 
