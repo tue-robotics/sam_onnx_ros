@@ -40,11 +40,15 @@ SAM::~SAM()
 }
 
 #if defined(SAM_ONNX_ROS_CUDA_ENABLED) && SAM_ONNX_ROS_CUDA_ENABLED
+#include <cuda_fp16.h>
+
 namespace Ort
 {
 template <> struct TypeToTensorType<half>
 {
-    static constexpr ONNXTensorElementDataType type = ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
+    // The member name is defined by ONNX Runtime
+    static constexpr ONNXTensorElementDataType type = // NOLINT(readability-identifier-naming)
+        ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
 };
 } // namespace Ort
 #endif
