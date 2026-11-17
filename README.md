@@ -61,6 +61,13 @@ You can use main.cpp to run the application
     You can also build the code as a ROS 2 (ament_cmake) package, e.g. with `tue-make sam_onnx_ros`
     or `colcon build --packages-select sam_onnx_ros`.
 
+The ROS 2 migration renamed the public API to the tue-robotics naming style, e.g. `SEG::DL_INIT_PARAM` is now
+`SEG::DlInitParam`, `Initialize`/`SegmentAnything` are now `initialize`/`segmentAnything`, and
+`SEG::Backend::kOnnx` is now `SEG::Backend::ONNX`. The
+[API changes guide](https://github.com/tue-robotics/yolo_onnx_ros/blob/master/docs/api_changes_lint_cleanup.md)
+in `yolo_onnx_ros` lists every change in both packages, plus a `sed` script for updating dependent packages such as
+`ed_sensor_integration`. The ROS 1 version stays available on the `ros1` branch.
+
 ## 📦 Dependencies
     CUDA: NVIDIA's parallel computing platform
     Onnx: High-performance deep learning inference
